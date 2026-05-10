@@ -317,6 +317,7 @@ export interface IPlayer {
   getSpendable(resource: SpendableCardResource): number;
   checkPaymentAndPlayCard(selectedCard: IProjectCard, payment: Payment, cardAction?: CardAction): void;
   pay(payment: Payment): void;
+  refund(payment: Payment): void;
   availableHeat(): number;
   spendHeat(amount: number, cb?: () => (undefined | PlayerInput)) : PlayerInput | undefined;
 

@@ -831,6 +831,38 @@ export class Player implements IPlayer {
     }
   }
 
+  public refund(payment: Payment) {
+    const standardUnits = Units.of({
+      megacredits: payment.megacredits,
+      steel: payment.steel,
+      titanium: payment.titanium,
+      plants: payment.plants,
+      heat: payment.heat,
+    });
+
+    this.stock.adjust(standardUnits);
+
+    const addResourcesOnCard = (name: CardName, count: number) => {
+      if (count === 0) {
+        return;
+      }
+      const card = this.playedCards.get(name);
+      if (card === undefined) {
+        throw new Error('Card ' + name + ' not found');
+      }
+      this.addResourceTo(card, {qty: count, log: true});
+    };
+
+    addResourcesOnCard(CardName.PSYCHROPHILES, payment.microbes);
+    addResourcesOnCard(CardName.DIRIGIBLES, payment.floaters);
+    addResourcesOnCard(CardName.LUNA_ARCHIVES, payment.lunaArchivesScience);
+    addResourcesOnCard(CardName.SPIRE, payment.spireScience);
+    addResourcesOnCard(CardName.CARBON_NANOSYSTEMS, payment.graphene);
+    addResourcesOnCard(CardName.SOYLENT_SEEDLING_SYSTEMS, payment.seeds);
+    addResourcesOnCard(CardName.AURORAI, payment.auroraiData);
+    addResourcesOnCard(CardName.KUIPER_COOPERATIVE, payment.kuiperAsteroids);
+  }
+
   public playCard(selectedCard: IProjectCard, payment?: Payment, cardAction: CardAction = 'add'): void {
     if (payment !== undefined) {
       this.pay(payment);
