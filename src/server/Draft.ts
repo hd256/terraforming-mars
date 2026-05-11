@@ -388,10 +388,12 @@ class PreludeDraft extends Draft {
   }
 
   override draw(player: IPlayer) {
+    // Return a copy. Otherwise inplaceRemove on draftHand later mutates
+    // dealtPreludeCards, leaking other players' picks.
     if (this.game.gameOptions.twoCorpsVariant) {
-      return player.dealtPreludeCards.filter((c) => c.name !== CardName.MERGER);
+      return [...player.dealtPreludeCards.filter((c) => c.name !== CardName.MERGER)];
     }
-    return player.dealtPreludeCards;
+    return [...player.dealtPreludeCards];
   }
 
   override cardsToKeep(_player: IPlayer): number {
@@ -431,7 +433,9 @@ class CEOsDraft extends Draft {
   }
 
   override draw(player: IPlayer) {
-    return player.dealtCeoCards;
+    // Return a copy. Otherwise inplaceRemove on draftHand later mutates
+    // dealtCeoCards, leaking other players' picks.
+    return [...player.dealtCeoCards];
   }
 
   override cardsToKeep(_player: IPlayer): number {
