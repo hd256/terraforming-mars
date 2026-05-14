@@ -1,5 +1,6 @@
 <template>
     <tr>
+      <td v-if="type === 'risingPlayer'" class="track-val tooltip tooltip-bottom" rowspan="2" :data-tooltip="$t('Track step')">{{ val }}</td>
       <td><div :class="iconClass"></div></td>
       <td v-for="idx in range" :key="idx" :class="getClass(idx)">
         <planetary-track-rewards :type="type" v-if="idx <= rewards.spaces.length && rewards.spaces[idx] !== undefined" :rewards="rewards.spaces[idx]" :gameOptions="gameOptions" />
