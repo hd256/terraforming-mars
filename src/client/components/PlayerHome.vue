@@ -29,42 +29,12 @@
 
     <div v-if="thisPlayer.tableau.length > 0">
       <div class="player_home_block">
-        <a name="board" class="player_home_anchor hotkey-target"></a>
-        <board
-          :spaces="game.spaces"
-          :expansions="game.gameOptions.expansions"
-          :venusScaleLevel="game.venusScaleLevel"
-          :boardName ="game.gameOptions.boardName"
-          :oceans_count="game.oceans"
-          :oxygen_level="game.oxygenLevel"
-          :temperature="game.temperature"
-          :altVenusBoard="game.gameOptions.altVenusBoard"
-          :aresData="game.aresData"
+        <GameBoardView
+          :game="game"
           :tileView="tileView"
+          :playerCount="playerView.players.length"
           @toggleTileView="cycleTileView()"
-          id="shortkey-board"
         />
-
-        <template v-if="game.turmoil">
-          <a class="hotkey-target"></a>
-          <turmoil :turmoil="game.turmoil"/>
-        </template>
-
-        <template v-if="game.moon">
-          <a class="hotkey-target"></a>
-          <MoonBoard :model="game.moon" :tileView="tileView" id="shortkey-moonBoard"/>
-        </template>
-
-        <template v-if="game.gameOptions.expansions.pathfinders" >
-          <a class="hotkey-target"></a>
-          <PlanetaryTracks :tracks="game.pathfinders" :gameOptions="game.gameOptions"/>
-        </template>
-
-        <div v-if="playerView.players.length > 1" class="player_home_block--milestones-and-awards">
-          <a class="hotkey-target"></a>
-          <Milestones :milestones="game.milestones" />
-          <Awards :awards="game.awards" />
-        </div>
       </div>
 
     <a class="hotkey-target"></a>
@@ -79,7 +49,7 @@
       <div class="player_home_block player_home_block--actions nofloat">
         <a name="actions" class="player_home_anchor"></a>
         <dynamic-title title="Actions" :color="thisPlayer.color"/>
-        <waiting-for v-if="game.phase !== 'end'" :players="playerView.players" :playerView="playerView" :settings="settings" :waitingfor="playerView.waitingFor"></waiting-for>
+        <waiting-for v-if="game.phase !== 'end'" :players="playerView.players" :playerView="playerView" :waitingfor="playerView.waitingFor"></waiting-for>
       </div>
 
       <div class="player_home_block player_home_block--hand" v-if="playerView.draftedCards.length > 0">
@@ -158,120 +128,11 @@
       <underground-tokens :underworldData="thisPlayer.underworldData"></underground-tokens>
     </div>
 
-    <div class="player_home_block player_home_block--setup nofloat"  v-if="thisPlayer.tableau.length === 0">
-      <template v-if="game.gameOptions.corpPoolDraftVariant && game.corpDraftPool && (isInitialDraftingPhase() || isInitialResearchPhase())">
-        <dynamic-title title="Corporation Pool" :color="thisPlayer.color"/>
-        <div v-for="card in game.corpDraftPool" :key="card.name" class="cardbox">
-          <Card :card="card">
-            <template v-if="card.ownerName">
-              <div :class="'card-owner-label player_translucent_bg_color_'+ card.ownerColor">
-                {{card.ownerName}}
-              </div>
-            </template>
-          </Card>
-        </div>
-        <dynamic-title v-if="isInitialDraftingPhase()" title="Drawn Cards" :color="thisPlayer.color"/>
-      </template>
-
-      <template v-if="isInitialDraftingPhase()">
-        <template v-if="!game.gameOptions.corpPoolDraftVariant || !game.corpDraftPool">
-          <div v-for="card in playerView.dealtCorporationCards" :key="card.name" class="cardbox">
-            <Card :card="card"/>
-          </div>
-        </template>
-
-        <div v-for="card in playerView.dealtPreludeCards" :key="card.name" class="cardbox">
-          <Card :card="card"/>
-        </div>
-
-        <div v-for="card in playerView.dealtCeoCards" :key="card.name" class="cardbox">
-          <Card :card="card"/>
-        </div>
-
-        <div v-for="card in playerView.dealtProjectCards" :key="card.name" class="cardbox">
-          <Card :card="card"/>
-        </div>
-      </template>
-      <div class="player_home_block player_home_block--hand" v-if="playerView.draftedCards.length > 0">
-        <dynamic-title title="Drafted Cards" :color="thisPlayer.color"/>
-        <div v-for="(card, index) in playerView.draftedCards" :key="card.name" class="cardbox">
-          <Card :card="card" :class="{ 'last-drafted-card' : index === playerView.draftedCards.length - 1 }"/>
-        </div>
-        <div v-for="card in playerView.unchosenDraftCards" :key="card.name" class="cardbox">
-          <Card :card="card" :actionUsed="true"/>
-        </div>
-      </div>
-
-      <template v-if="playerView.pickedCorporationCard.length === 1">
-        <dynamic-title title="Your selected cards:" :color="thisPlayer.color"/>
-        <div>
-          <div class="cardbox">
-            <Card :card="playerView.pickedCorporationCard[0]"/>
-          </div>
-          <template v-if="game.gameOptions.expansions.prelude">
-            <div v-for="card in playerView.preludeCardsInHand" :key="card.name" class="cardbox">
-              <Card :card="card"/>
-            </div>
-          </template>
-          <template v-if="game.gameOptions.expansions.ceo">
-            <div v-for="card in playerView.ceoCardsInHand" :key="card.name" class="cardbox">
-            <Card :card="card"/>
-            </div>
-          </template>
-        </div>
-        <div>
-          <div v-for="card in playerView.cardsInHand" :key="card.name" class="cardbox">
-            <Card :card="card"/>
-          </div>
-        </div>
-      </template>
-
-      <dynamic-title v-if="playerView.pickedCorporationCard.length === 0" title="Select initial cards:" :color="thisPlayer.color"/>
-      <waiting-for v-if="game.phase !== 'end'" :players="playerView.players" :playerView="playerView" :settings="settings" :waitingfor="playerView.waitingFor"></waiting-for>
-
-      <dynamic-title title="Game details" :color="thisPlayer.color"/>
-
-      <div class="player_home_block" v-if="playerView.players.length > 1">
-        <Milestones :showScores="false" :milestones="game.milestones" />
-        <Awards :awards="game.awards" />
-      </div>
-
-      <div class="player_home_block player_home_block--turnorder nofloat" v-if="playerView.players.length>1">
-        <dynamic-title title="Turn order" :color="thisPlayer.color"/>
-        <div class="player_item" v-for="(p, idx) in playerView.players" :key="idx" v-trim-whitespace>
-          <div class="player_name_cont" :class="getPlayerCssForTurnOrder(p, true)">
-            <span class="player_number">{{ idx+1 }}.</span><span class="player_name" :class="getPlayerCssForTurnOrder(p, false)" href="#">{{ p.name }}</span>
-          </div>
-          <div class="player_separator" v-if="idx !== playerView.players.length - 1">⟶</div>
-        </div>
-      </div>
-
-      <details class="accordion board-accordion" open>
-        <summary class="accordion-header">
-          <div class="is-action">
-            <i class="icon icon-arrow-right mr-1"></i>
-            <span v-i18n>Board</span>
-          </div>
-        </summary>
-        <div class="accordion-body">
-          <board
-            :spaces="game.spaces"
-            :expansions="game.gameOptions.expansions"
-            :venusScaleLevel="game.venusScaleLevel"
-            :boardName ="game.gameOptions.boardName"
-            :aresData="game.aresData"
-            :altVenusBoard="game.gameOptions.altVenusBoard">
-          </board>
-
-          <turmoil v-if="game.turmoil" :turmoil="game.turmoil"></turmoil>
-
-          <PlanetaryTracks v-if="game.gameOptions.expansions.pathfinders" :tracks="game.pathfinders" :gameOptions="game.gameOptions"/>
-
-          <a name="moonBoard" class="player_home_anchor"></a>
-          <MoonBoard v-if="game.moon !== undefined" :model="game.moon" :tileView="tileView"></MoonBoard>
-        </div>
-      </details>
-    </div>
+    <PlayerSetupView
+      v-if="thisPlayer.tableau.length === 0"
+      :playerView="playerView"
+      :tileView="tileView"
+    />
 
     <div v-if="game.colonies.length > 0" class="player_home_block" ref="colonies" id="shortkey-colonies">
       <a name="colonies" class="player_home_anchor hotkey-target"></a>
@@ -297,31 +158,24 @@
 
 <script lang="ts">
 import {defineComponent} from 'vue';
-import raw_settings from '@/genfiles/settings.json';
 
-import Board from '@/client/components/Board.vue';
 import Card from '@/client/components/card/Card.vue';
-import Milestones from '@/client/components/Milestones.vue';
-import Awards from '@/client/components/Awards.vue';
 import PlayersOverview from '@/client/components/overview/PlayersOverview.vue';
 import WaitingFor from '@/client/components/WaitingFor.vue';
 import Sidebar from '@/client/components/Sidebar.vue';
 import Colony from '@/client/components/colonies/Colony.vue';
 import LogPanel from '@/client/components/logpanel/LogPanel.vue';
-import Turmoil from '@/client/components/turmoil/Turmoil.vue';
-import PlanetaryTracks from '@/client/components/pathfinders/PlanetaryTracks.vue';
+import GameBoardView from '@/client/components/GameBoardView.vue';
+import PlayerSetupView from '@/client/components/PlayerSetupView.vue';
 import DynamicTitle from '@/client/components/common/DynamicTitle.vue';
 import SortableCards from '@/client/components/SortableCards.vue';
 import TopBar from '@/client/components/TopBar.vue';
-import MoonBoard from '@/client/components/moon/MoonBoard.vue';
 import StackedCards from '@/client/components/StackedCards.vue';
 import PurgeWarning from '@/client/components/common/PurgeWarning.vue';
 import UndergroundTokens from '@/client/components/underworld/UndergroundTokens.vue';
 import KeyboardShortcuts from '@/client/components/KeyboardShortcuts.vue';
-import {playerColorClass} from '@/common/utils/utils';
 import {getPreferences, PreferencesManager} from '@/client/utils/PreferencesManager';
 import {KeyboardNavigation} from '@/client/components/KeyboardNavigation';
-import {Phase} from '@/common/Phase';
 import {GameModel} from '@/common/models/GameModel';
 import {PlayerViewModel, PublicPlayerModel} from '@/common/models/PlayerModel';
 import {CardType} from '@/common/cards/CardType';
@@ -332,7 +186,7 @@ import {CardModel} from '@/common/models/CardModel';
 import {getCardOrThrow} from '../cards/ClientCardManifest';
 import {APP_NAME} from '@/common/constants';
 
-export interface PlayerHomeModel {
+export type PlayerHomeModel = {
   showHand: boolean;
   showActiveCards: boolean;
   showAutomatedCards: boolean;
@@ -375,10 +229,6 @@ export default defineComponent({
       type: Object as () => PlayerViewModel,
       required: true,
     },
-    settings: {
-      type: Object as () => typeof raw_settings,
-      required: true,
-    },
   },
   computed: {
     thisPlayer(): PublicPlayerModel {
@@ -406,21 +256,17 @@ export default defineComponent({
   },
 
   components: {
-    'board': Board,
     DynamicTitle,
     Card,
     'players-overview': PlayersOverview,
     'waiting-for': WaitingFor,
-    Milestones,
-    Awards,
     'sidebar': Sidebar,
     'colony': Colony,
     'log-panel': LogPanel,
-    'turmoil': Turmoil,
     'sortable-cards': SortableCards,
     'top-bar': TopBar,
-    MoonBoard,
-    PlanetaryTracks,
+    GameBoardView,
+    PlayerSetupView,
     'stacked-cards': StackedCards,
     PurgeWarning,
     UndergroundTokens,
@@ -469,19 +315,6 @@ export default defineComponent({
     isPlayerActing(playerView: PlayerViewModel) : boolean {
       return playerView.players.length > 1 && playerView.waitingFor !== undefined;
     },
-    getPlayerCssForTurnOrder: (
-      player: PublicPlayerModel,
-      highlightActive: boolean,
-    ): string => {
-      const classes = ['highlighter_box'];
-      if (highlightActive) {
-        if (player.needsToDraft || (player.needsToDraft === undefined && player.isActive)) {
-          classes.push('player_is_active');
-        }
-        classes.push(playerColorClass(player.color, 'bg'));
-      }
-      return classes.join(' ');
-    },
     getFleetsCountRange(player: PublicPlayerModel): Array<number> {
       const fleetsRange = [];
       for (let i = 0; i < player.fleetSize - player.tradesThisGeneration; i++) {
@@ -520,12 +353,6 @@ export default defineComponent({
         return this.showEventCards;
       }
       return false;
-    },
-    isInitialDraftingPhase(): boolean {
-      return (this.game.phase === Phase.INITIALDRAFTING) && this.game.gameOptions.initialDraftVariant;
-    },
-    isInitialResearchPhase(): boolean {
-      return (this.game.phase === Phase.RESEARCH) && (this.game.generation === 1);
     },
     getToggleLabel(hideType: string): string {
       if (hideType === 'HAND') {
