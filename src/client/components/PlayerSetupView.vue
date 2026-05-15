@@ -1,9 +1,25 @@
 <template>
   <div class="player_home_block player_home_block--setup nofloat">
-    <template v-if="isInitialDraftingPhase">
-      <div v-for="card in playerView.dealtCorporationCards" :key="card.name" class="cardbox">
-        <Card :card="card"/>
+    <template v-if="game.gameOptions.corpPoolDraftVariant && game.corpDraftPool && (isInitialDraftingPhase || isInitialResearchPhase)">
+      <dynamic-title title="Corporation Pool" :color="thisPlayer.color"/>
+      <div v-for="card in game.corpDraftPool" :key="card.name" class="cardbox">
+        <Card :card="card">
+          <template v-if="card.ownerName">
+            <div :class="'card-owner-label player_translucent_bg_color_'+ card.ownerColor">
+              {{card.ownerName}}
+            </div>
+          </template>
+        </Card>
       </div>
+      <dynamic-title v-if="isInitialDraftingPhase" title="Drawn Cards" :color="thisPlayer.color"/>
+    </template>
+
+    <template v-if="isInitialDraftingPhase">
+      <template v-if="!game.gameOptions.corpPoolDraftVariant || !game.corpDraftPool">
+        <div v-for="card in playerView.dealtCorporationCards" :key="card.name" class="cardbox">
+          <Card :card="card"/>
+        </div>
+      </template>
 
       <div v-for="card in playerView.dealtPreludeCards" :key="card.name" class="cardbox">
         <Card :card="card"/>
@@ -17,10 +33,14 @@
         <Card :card="card"/>
       </div>
     </template>
+
     <div class="player_home_block player_home_block--hand" v-if="playerView.draftedCards.length > 0">
       <dynamic-title title="Drafted Cards" :color="thisPlayer.color"/>
-      <div v-for="card in playerView.draftedCards" :key="card.name" class="cardbox">
-          <Card :card="card"/>
+      <div v-for="(card, index) in playerView.draftedCards" :key="card.name" class="cardbox">
+          <Card :card="card" :class="{ 'last-drafted-card' : index === playerView.draftedCards.length - 1 }"/>
+      </div>
+      <div v-for="card in playerView.unchosenDraftCards" :key="card.name" class="cardbox">
+        <Card :card="card" :actionUsed="true"/>
       </div>
     </div>
 
@@ -87,6 +107,8 @@
 
         <turmoil v-if="game.turmoil" :turmoil="game.turmoil"></turmoil>
 
+        <PlanetaryTracks v-if="game.gameOptions.expansions.pathfinders" :tracks="game.pathfinders" :gameOptions="game.gameOptions"/>
+
         <a name="moonBoard" class="player_home_anchor"></a>
         <MoonBoard v-if="game.moon !== undefined" :model="game.moon" :tileView="tileView"></MoonBoard>
       </div>
@@ -104,6 +126,8 @@ import Awards from '@/client/components/Awards.vue';
 import WaitingFor from '@/client/components/WaitingFor.vue';
 import Turmoil from '@/client/components/turmoil/Turmoil.vue';
 import MoonBoard from '@/client/components/moon/MoonBoard.vue';
+import DynamicTitle from '@/client/components/common/DynamicTitle.vue';
+import PlanetaryTracks from '@/client/components/pathfinders/PlanetaryTracks.vue';
 import {playerColorClass} from '@/common/utils/utils';
 import {Phase} from '@/common/Phase';
 import {GameModel} from '@/common/models/GameModel';
@@ -132,6 +156,9 @@ export default defineComponent({
     isInitialDraftingPhase(): boolean {
       return (this.game.phase === Phase.INITIALDRAFTING) && this.game.gameOptions.initialDraftVariant;
     },
+    isInitialResearchPhase(): boolean {
+      return (this.game.phase === Phase.RESEARCH) && (this.game.generation === 1);
+    },
   },
   components: {
     'board': Board,
@@ -141,6 +168,8 @@ export default defineComponent({
     Awards,
     'turmoil': Turmoil,
     MoonBoard,
+    DynamicTitle,
+    PlanetaryTracks,
   },
   methods: {
     getPlayerCssForTurnOrder: (
