@@ -55,7 +55,7 @@ let ui_update_timeout_id: number | undefined;
 let documentTitleTimer: number | undefined;
 
 type DataModel = {
-  playersWaitingFor: Array<{name: string, color: Color}>
+  playersWaitingFor: Array<Color>
   suspend: boolean,
   savedPlayerView: PlayerViewModel | undefined;
 }

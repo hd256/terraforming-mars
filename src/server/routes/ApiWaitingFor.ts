@@ -1,14 +1,14 @@
 import * as responses from '../server/responses';
-import {Handler} from './Handler';
-import {Context} from './IHandler';
-import {Phase} from '../../common/Phase';
-import {IPlayer} from '../IPlayer';
-import {WaitingForModel} from '../../common/models/WaitingForModel';
-import {IGame} from '../IGame';
-import {isPlayerId, isSpectatorId} from '../../common/Types';
-import {Request} from '../Request';
-import {Response} from '../Response';
-import {Color} from '../../common/Color';
+import { Handler } from './Handler';
+import { Context } from './IHandler';
+import { Phase } from '../../common/Phase';
+import { IPlayer } from '../IPlayer';
+import { WaitingForModel } from '../../common/models/WaitingForModel';
+import { IGame } from '../IGame';
+import { isPlayerId, isSpectatorId } from '../../common/Types';
+import { Request } from '../Request';
+import { Response } from '../Response';
+import { Color } from '../../common/Color';
 
 export class ApiWaitingFor extends Handler {
   public static readonly INSTANCE = new ApiWaitingFor();
@@ -25,32 +25,32 @@ export class ApiWaitingFor extends Handler {
     return player.game.phase === Phase.END;
   }
 
-  private playersWithInputs(game: IGame): Array<{name: string, color: Color}> {
+  private playersWithInputs(game: IGame): Array<Color> {
     return game.playersInGenerationOrder
       .filter((player) => {
         const waitingFor = player.getWaitingFor();
         return waitingFor !== undefined && !waitingFor.polling;
       })
-      .map((player) => ({name: player.name, color: player.color}));
+      .map((player) => player.color);
   }
 
   private getPlayerWaitingForModel(player: IPlayer, game: IGame, gameAge: number, undoCount: number): WaitingForModel {
     const inputs = this.playersWithInputs(game);
     if (this.timeToGo(player)) {
-      return {result: 'GO', waitingFor: inputs};
+      return { result: 'GO', waitingFor: inputs };
     } else if (game.gameAge > gameAge || game.undoCount > undoCount) {
-      return {result: 'REFRESH', waitingFor: inputs};
+      return { result: 'REFRESH', waitingFor: inputs };
     }
-    return {result: 'WAIT', waitingFor: inputs};
+    return { result: 'WAIT', waitingFor: inputs };
   }
 
   private getSpectatorWaitingForModel(game: IGame, gameAge: number, undoCount: number): WaitingForModel {
     const inputs = this.playersWithInputs(game);
 
     if (game.gameAge > gameAge || game.undoCount > undoCount) {
-      return {result: 'REFRESH', waitingFor: inputs};
+      return { result: 'REFRESH', waitingFor: inputs };
     }
-    return {result: 'WAIT', waitingFor: inputs};
+    return { result: 'WAIT', waitingFor: inputs };
   }
 
   public override async get(req: Request, res: Response, ctx: Context): Promise<void> {
