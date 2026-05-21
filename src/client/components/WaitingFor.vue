@@ -8,7 +8,7 @@
       {{ $t('Waiting for other players') }}
     </template>
     <template v-if="playersWaitingFor.length > 0">
-      (⌛ <span v-for="player in playersWaitingFor" class="log-player" :class="'player_bg_color_' + player.color" :key="player.color"> {{ player.name }} </span>)
+      (⌛ <span v-for="color in playersWaitingFor" class="log-player" :class="playerColorClass(color, 'bg')" :key="color">{{ getPlayerName(color) }}</span>)
     </template>
   </template>
   <div v-if="waitingfor !== undefined" class="wf-root">
@@ -19,7 +19,7 @@
       </label>
       <div v-if="showRefresh()">Refresh<span class="reset"></span></div>
     </template>
-    <player-input-factory :players="players"
+    <player-input-factory :players="playerView.players"
                           :playerView="playerView"
                           :playerinput="waitingfor"
                           :onsave="onsave"
@@ -38,7 +38,7 @@ import raw_settings from '@/genfiles/settings.json';
 import {vueRoot} from '@/client/components/vueRoot';
 import {PlayerInputModel} from '@/common/models/PlayerInputModel';
 import {playerColorClass} from '@/common/utils/utils';
-import {PublicPlayerModel, PlayerViewModel, ViewModel} from '@/common/models/PlayerModel';
+import {PlayerViewModel, ViewModel} from '@/common/models/PlayerModel';
 import {getPreferences} from '@/client/utils/PreferencesManager';
 import {SoundManager} from '@/client/utils/SoundManager';
 import {WaitingForModel} from '@/common/models/WaitingForModel';
@@ -49,6 +49,7 @@ import {isPlayerId} from '@/common/Types';
 import {InputResponse} from '@/common/inputs/InputResponse';
 import {INVALID_RUN_ID, AppErrorResponse} from '@/common/app/AppErrorId';
 import {Color} from '@/common/Color';
+import {gameDocumentTitle} from '../utils/documentTitle';
 
 let ui_update_timeout_id: number | undefined;
 let documentTitleTimer: number | undefined;
@@ -68,10 +69,6 @@ export default defineComponent({
       type: Object as () => ViewModel,
       required: true,
     },
-    players: {
-      type: Array as () => Array<PublicPlayerModel>,
-      required: true,
-    },
     waitingfor: {
       type: Object as () => PlayerInputModel | undefined,
       default: undefined,
@@ -85,6 +82,10 @@ export default defineComponent({
     };
   },
   methods: {
+    getPlayerName(color: Color): string {
+      const player = this.playerView.players.find((p) => p.color === color);
+      return player ? player.name : color;
+    },
     animateTitle() {
       if (!getPreferences().animated_title) {
         return;
@@ -97,9 +98,7 @@ export default defineComponent({
       if (position !== -1 && position < sequence.length - 1) {
         next = sequence[position + 1];
       }
-      const playerCount = this.playerView.players.length;
-      const gameType = playerCount === 1 ? 'Solo Game' : `${playerCount} Player Game`;
-      document.title = next + ' ' + `${gameType} | ${this.$t(constants.APP_NAME)}`;
+      document.title = next + ' ' + gameDocumentTitle(this.playerView.game);
     },
     onsave(out: InputResponse) {
       this.fetchPlayerInput(
@@ -244,11 +243,13 @@ export default defineComponent({
     showRefresh(): boolean {
       return this.suspend === true && this.savedPlayerView !== undefined;
     },
+    playerName(color: Color) {
+      const player = this.playerView.players.find((p) => p.color === color);
+      return player?.name ?? '';
+    },
   },
   mounted() {
-    const playerCount = this.playerView.players.length;
-    const gameType = playerCount === 1 ? 'Solo Game' : `${playerCount} Player Game`;
-    document.title = `${gameType} | ${this.$t(constants.APP_NAME)}`;
+    document.title = gameDocumentTitle(this.playerView.game);
     window.clearInterval(documentTitleTimer);
     if (this.waitingfor === undefined || this.waitingfor.polling) {
       this.waitForUpdate();

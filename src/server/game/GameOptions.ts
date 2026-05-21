@@ -38,6 +38,7 @@ export type GameOptions = {
   ceoExtension: boolean;
   starWarsExpansion: boolean;
   underworldExpansion: boolean;
+  deltaProjectExpansion: boolean;
 
   expansions: Record<Expansion, boolean>,
 
@@ -112,6 +113,7 @@ export const DEFAULT_GAME_OPTIONS: GameOptions = {
     ceo: false,
     starwars: false,
     underworld: false,
+    deltaProject: false,
   },
   fastModeOption: false,
   includeFanMA: false,
@@ -144,6 +146,7 @@ export const DEFAULT_GAME_OPTIONS: GameOptions = {
   starWarsExpansion: false,
   turmoilExtension: false,
   underworldExpansion: false,
+  deltaProjectExpansion: false,
   undoOption: false,
   venusNextExtension: false,
   twoCorpsVariant: false,

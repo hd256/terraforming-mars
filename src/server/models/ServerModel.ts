@@ -35,6 +35,7 @@ export class Server {
     return {
       activePlayer: game.activePlayer.color,
       id: game.id,
+      name: game.name,
       phase: game.phase,
       players: game.playersInGenerationOrder.map((player) => ({
         color: player.color,
@@ -85,6 +86,7 @@ export class Server {
       lastSoloGeneration: game.lastSoloGeneration(),
       milestones: this.getMilestones(game),
       moon: this.getMoonModel(game),
+      name: game.name,
       oceans: game.board.getOceanSpaces().length,
       oxygenLevel: game.getOxygenLevel(),
       passedPlayers: game.getPassedPlayers(),
@@ -305,6 +307,8 @@ export class Server {
       model.globalParameterSteps = player.globalParameterSteps;
     }
 
+    model.deltaProject = player.deltaProjectData;
+
     return model;
   }
 
@@ -450,6 +454,7 @@ export class Server {
         ceo: options.ceoExtension,
         starwars: options.starWarsExpansion,
         underworld: options.underworldExpansion,
+        deltaProject: options.deltaProjectExpansion,
       },
       fastModeOption: options.fastModeOption,
       includedCards: options.includedCards,

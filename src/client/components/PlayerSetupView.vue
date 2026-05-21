@@ -69,7 +69,7 @@
     </template>
 
     <dynamic-title v-if="playerView.pickedCorporationCard.length === 0" title="Select initial cards:" :color="thisPlayer.color"/>
-    <waiting-for v-if="game.phase !== 'end'" :players="playerView.players" :playerView="playerView" :waitingfor="playerView.waitingFor"></waiting-for>
+    <waiting-for v-if="game.phase !== 'end'" :playerView="playerView" :waitingfor="playerView.waitingFor"></waiting-for>
 
     <dynamic-title title="Game details" :color="thisPlayer.color"/>
 
@@ -111,6 +111,7 @@
 
         <a name="moonBoard" class="player_home_anchor"></a>
         <MoonBoard v-if="game.moon !== undefined" :model="game.moon" :tileView="tileView"></MoonBoard>
+        <DeltaProjectBoard v-if="game.gameOptions.expansions.deltaProject" :players="playerView.players"></DeltaProjectBoard>
       </div>
     </details>
   </div>
@@ -121,12 +122,13 @@ import {defineComponent} from 'vue';
 
 import Board from '@/client/components/Board.vue';
 import Card from '@/client/components/card/Card.vue';
+import DeltaProjectBoard from '@/client/components/delta/DeltaProjectBoard.vue';
+import DynamicTitle from '@/client/components/common/DynamicTitle.vue';
 import Milestones from '@/client/components/Milestones.vue';
 import Awards from '@/client/components/Awards.vue';
 import WaitingFor from '@/client/components/WaitingFor.vue';
 import Turmoil from '@/client/components/turmoil/Turmoil.vue';
 import MoonBoard from '@/client/components/moon/MoonBoard.vue';
-import DynamicTitle from '@/client/components/common/DynamicTitle.vue';
 import PlanetaryTracks from '@/client/components/pathfinders/PlanetaryTracks.vue';
 import {playerColorClass} from '@/common/utils/utils';
 import {Phase} from '@/common/Phase';
@@ -163,10 +165,13 @@ export default defineComponent({
   components: {
     'board': Board,
     Card,
+    DeltaProjectBoard,
+    DynamicTitle,
     'waiting-for': WaitingFor,
     Milestones,
     Awards,
     'turmoil': Turmoil,
+    PlanetaryTracks,
     MoonBoard,
     DynamicTitle,
     PlanetaryTracks,

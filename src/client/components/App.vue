@@ -42,7 +42,7 @@
       <card-list v-else-if="screen === 'cards'"></card-list>
       <admin-home v-else-if="screen === 'admin'"></admin-home>
       <login-home v-else-if="screen === 'login-home'"></login-home>
-      <Help v-else-if="screen === 'help'"></Help>
+      <help v-else-if="screen === 'help'"></help>
     </div>
     <div class="notice" v-i18n>
       Not affiliated with FryxGames, Asmodee Digital or Steam in any way.
@@ -75,6 +75,7 @@ import {isPlayerId, isSpectatorId} from '@/common/Types';
 import {hasShowModal, showModal, windowHasHTMLDialogElement} from './HTMLDialogElementCompatibility';
 
 import dialogPolyfill from 'dialog-polyfill';
+import {setDocumentTitle} from '../utils/documentTitle';
 
 type Screen = 'admin' |
             'create-game-form' |
@@ -244,7 +245,7 @@ export default defineComponent({
     },
   },
   mounted() {
-    document.title = constants.APP_NAME;
+    setDocumentTitle();
     if (!windowHasHTMLDialogElement()) {
       dialogPolyfill.registerDialog(document.getElementById('alert-dialog') as HTMLDialogElement);
     }

@@ -42,11 +42,12 @@ export interface Score {
 
 export interface IGame extends Logger {
   readonly id: GameId;
+  readonly name: string;
   readonly gameOptions: Readonly<GameOptions>;
   // Game-level data
   lastSaveId: number;
-  rng: SeededRandom;
-  spectatorId: SpectatorId | undefined;
+  readonly rng: SeededRandom;
+  readonly spectatorId: SpectatorId;
   deferredActions: DeferredActionsQueue;
   createdTime: Date;
   gameAge: number; // Each log event increases it

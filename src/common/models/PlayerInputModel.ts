@@ -105,6 +105,11 @@ export type SelectAmountModel = BaseInputModel & {
   maxByDefault: boolean;
 }
 
+export type DeltaProjectInputModel = BaseInputModel & {
+  type: 'deltaProject';
+  validSteps: ReadonlyArray<number>;
+}
+
 export type SelectDelegateModel = BaseInputModel & {
   type: 'delegate';
   players: Array<ColorWithNeutral>;
@@ -168,4 +173,5 @@ export type PlayerInputModel =
   SelectGlobalEventModel |
   SelectResourceModel |
   SelectResourcesModel |
-  SelectClaimedUndergroundTokenModel;
+  SelectClaimedUndergroundTokenModel |
+  DeltaProjectInputModel;
