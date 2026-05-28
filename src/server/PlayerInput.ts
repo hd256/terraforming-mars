@@ -10,6 +10,9 @@ export interface PlayerInput {
     buttonLabel: string;
     title: string | Message;
     warning?: string | Message;
+
+    // Contextual annotation identifying this PlayerInput.
+    annotation: string | undefined;
     /**
      * When false, this input should not be the default selected PlayerInput.
      * When unset or true, this input may be the default selected PlayerInput.
@@ -44,6 +47,7 @@ export abstract class BasePlayerInput<T> implements PlayerInput {
   public warning?: string | Message;
   public cb: (param: T) => PlayerInput | undefined = NULL_FUNCTION;
   public eligibleForDefault: boolean | undefined = undefined;
+  public annotation: string | undefined;
   public polling?: boolean;
   public autoTimerSeconds?: number;
 
@@ -81,6 +85,11 @@ export abstract class BasePlayerInput<T> implements PlayerInput {
 
   public setWarning(warning: string | Message) : this {
     this.warning = warning;
+    return this;
+  }
+
+  annotate(annotation: string): this {
+    this.annotation = annotation;
     return this;
   }
 }
