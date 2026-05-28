@@ -58,9 +58,6 @@
         <div v-for="(card, index) in playerView.draftedCards" :key="card.name" class="cardbox">
           <Card :card="card" :class="{ 'last-drafted-card' : index === playerView.draftedCards.length - 1 }"/>
         </div>
-        <div v-for="card in playerView.unchosenDraftCards" :key="card.name" class="cardbox">
-          <Card :card="card" :actionUsed="true"/>
-        </div>
       </div>
 
       <a name="cards" class="player_home_anchor"></a>
@@ -276,7 +273,7 @@ export default defineComponent({
   },
   methods: {
     isPlayerActing(playerView: PlayerViewModel) : boolean {
-      return playerView.players.length > 1 && playerView.waitingFor !== undefined;
+      return playerView.players.length > 1 && playerView.waitingFor !== undefined && !playerView.waitingFor.polling;
     },
     getFleetsCountRange(player: PublicPlayerModel): Array<number> {
       const fleetsRange = [];

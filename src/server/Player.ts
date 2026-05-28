@@ -137,7 +137,6 @@ export class Player implements IPlayer {
   public ceoCardsInHand: Set<ICeoCard> = new Set();
   public playedCards: PlayedCards = new PlayedCards();
   public draftedCards: Array<IProjectCard> = [];
-  public unchosenDraftCards: Array<IProjectCard> = [];
   public draftHand: Array<IProjectCard> = [];
   public cardCost: number = constants.CARD_COST;
   public needsToDraft?: boolean;
@@ -1769,7 +1768,9 @@ export class Player implements IPlayer {
         console.warn(message);
       }
     }
-    this.timer.start();
+    if (!input.polling) {
+      this.timer.start();
+    }
     this.waitingFor = input;
     this.waitingForCb = cb;
     this.game.inputsThisRound++;
@@ -1797,6 +1798,12 @@ export class Player implements IPlayer {
         };
       }
     }
+  }
+
+  public clearWaitingFor(): void {
+    this.waitingFor = undefined;
+    this.waitingForCb = undefined;
+    this.timer.stop();
   }
 
   public serialize(): SerializedPlayer {
@@ -1845,7 +1852,6 @@ export class Player implements IPlayer {
       ceoCardsInHand: Array.from(this.ceoCardsInHand).map(toName),
       playedCards: this.playedCards.serialize(),
       draftedCards: this.draftedCards.map(toName),
-      unchosenDraftCards: this.unchosenDraftCards.map(toName),
       cardCost: this.cardCost,
       needsToDraft: this.needsToDraft,
       cardDiscount: this.colonies.cardDiscount,
@@ -1969,7 +1975,6 @@ export class Player implements IPlayer {
     player.ceoCardsInHand = new Set(ceosFromJSON(d.ceoCardsInHand));
     player.playedCards.deserialize(d.playedCards);
     player.draftedCards = cardsFromJSON(d.draftedCards);
-    player.unchosenDraftCards = cardsFromJSON(d.unchosenDraftCards);
     player.autopass = d.autoPass ?? false;
     player.preservationProgram = d.preservationProgram ?? false;
 

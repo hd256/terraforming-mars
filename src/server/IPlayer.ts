@@ -119,8 +119,6 @@ export interface IPlayer {
   draftHand: Array<IProjectCard>;
   /** Cards this player has already chosen during this draft round */
   draftedCards: Array<IProjectCard>;
-  /** Cards this player has not chosen during this draft round */
-  unchosenDraftCards: Array<IProjectCard>;
   /** true when this player is drafting, false when player is not, undefined when there is no draft phase. */
   needsToDraft?: boolean;
 
@@ -355,6 +353,7 @@ export interface IPlayer {
   getWaitingFor(): PlayerInput | undefined;
   setWaitingFor(input: PlayerInput, cb?: () => void): void;
   setWaitingForSafely(input: PlayerInput, cb?: () => void): void;
+  clearWaitingFor(): void;
   serialize(): SerializedPlayer;
 
   /** Returns the cost a player must spend to claim a milestone. Public for Briber. */
