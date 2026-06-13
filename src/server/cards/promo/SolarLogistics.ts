@@ -1,4 +1,3 @@
-import {Card} from '../Card';
 import {IActionCard, ICard} from '../ICard';
 import {CardType} from '../../../common/cards/CardType';
 import {CardResource} from '../../../common/CardResource';
@@ -7,11 +6,9 @@ import {CardName} from '../../../common/cards/CardName';
 import {CardRenderer} from '../render/CardRenderer';
 import {Tag} from '../../../common/cards/Tag';
 import {all} from '../Options';
-import {IProjectCard} from '../IProjectCard';
-import {Resource} from '../../../common/Resource';
-import {AddResourcesToCard} from '../../deferredActions/AddResourcesToCard';
+import { ActionCard } from '../ActionCard';
 
-export class SolarLogistics extends Card implements IActionCard, IProjectCard {
+export class SolarLogistics extends ActionCard implements IActionCard {
   constructor() {
     super({
       type: CardType.ACTIVE,
@@ -25,6 +22,10 @@ export class SolarLogistics extends Card implements IActionCard, IProjectCard {
       },
       victoryPoints: 1,
       cardDiscount: {tag: Tag.EARTH, amount: 2},
+      action: {
+        spend: { titanium: 1 },
+        addResourcesToAnyCard: { type: CardResource.DATA, count: 2, autoSelect: true },
+      },
 
       metadata: {
         cardNumber: 'X63',
@@ -35,7 +36,7 @@ export class SolarLogistics extends Card implements IActionCard, IProjectCard {
           b.effect('When any player plays a space event, remove 1 Data from this card to draw a card. (No effect if this card has no Data.)',
             (eb) => eb.tag(Tag.SPACE, {all}).tag(Tag.EVENT, {all}).startEffect.minus().resource(CardResource.DATA).colon().cards(1));
           b.br;
-          b.action('Spend 1 Titanium to add 2 Data to any card.', (ab) => {
+          b.action('Spend 1 Titanium to add 2 Data to ANY card.', (ab) => {
             ab.titanium(1).startAction.resource(CardResource.DATA, 2).asterix();
           });
           b.br;
@@ -44,16 +45,6 @@ export class SolarLogistics extends Card implements IActionCard, IProjectCard {
         description: 'Gain 2 titanium.',
       },
     });
-  }
-
-  public canAct(player: IPlayer): boolean {
-    return player.titanium >= 1;
-  }
-
-  public action(player: IPlayer) {
-    player.stock.deduct(Resource.TITANIUM, 1);
-    player.game.defer(new AddResourcesToCard(player, CardResource.DATA, {count: 2}));
-    return undefined;
   }
 
   public onCardPlayedByAnyPlayer(thisCardOwner: IPlayer, card: ICard) {
