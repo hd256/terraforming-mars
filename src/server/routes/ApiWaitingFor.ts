@@ -8,7 +8,6 @@ import { IGame } from '../IGame';
 import { isPlayerId, isSpectatorId } from '../../common/Types';
 import { Request } from '../Request';
 import { Response } from '../Response';
-import { Color } from '../../common/Color';
 
 export class ApiWaitingFor extends Handler {
   public static readonly INSTANCE = new ApiWaitingFor();
