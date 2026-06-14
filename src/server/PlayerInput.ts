@@ -20,8 +20,12 @@ export interface PlayerInput {
      * Used only when this option is a child option of an OrOptions.
      */
     eligibleForDefault?: boolean;
-    polling?: boolean;
     autoTimerSeconds?: number;
+    /**
+     * When true, this indicates that the input is optional and the user should
+     * continue to poll for updates.
+     */
+  optional?: boolean;
 
     cb(...item: any): PlayerInput | undefined;
 
@@ -48,8 +52,8 @@ export abstract class BasePlayerInput<T> implements PlayerInput {
   public cb: (param: T) => PlayerInput | undefined = NULL_FUNCTION;
   public eligibleForDefault: boolean | undefined = undefined;
   public annotation: string | undefined;
-  public polling?: boolean;
   public autoTimerSeconds?: number;
+  public optional?: boolean;
 
   public abstract toModel(player: IPlayer): PlayerInputModel;
   public abstract process(response: InputResponse, player: IPlayer): PlayerInput | undefined;

@@ -16,28 +16,27 @@ export class ApiWaitingFor extends Handler {
     super();
   }
 
-  private timeToGo(player: IPlayer): boolean {
+  private playerHasRequiredInput(player: IPlayer): boolean {
     const input = player.getWaitingFor();
     if (input !== undefined) {
-      if (input.polling) return false;
-      return true;
+      return !input.optional;
     }
     return player.game.phase === Phase.END;
   }
 
-  private playersWithInputs(game: IGame): Array<Color> {
+  private playersWithRequiredInputs(game: IGame) {
     return game.playersInGenerationOrder
       .filter((player) => {
         const waitingFor = player.getWaitingFor();
-        return waitingFor !== undefined && !waitingFor.polling;
+        return waitingFor !== undefined && !waitingFor.optional;
       })
       .map((player) => player.color);
   }
 
   private getPlayerWaitingForModel(player: IPlayer, game: IGame, gameAge: number, undoCount: number): WaitingForModel {
-    const inputs = this.playersWithInputs(game);
-    if (this.timeToGo(player)) {
-      return { result: 'GO', waitingFor: inputs };
+    const inputs = this.playersWithRequiredInputs(game);
+    if (this.playerHasRequiredInput(player)) {
+      return {result: 'GO', waitingFor: inputs};
     } else if (game.gameAge > gameAge || game.undoCount > undoCount) {
       return { result: 'REFRESH', waitingFor: inputs };
     }
@@ -45,7 +44,7 @@ export class ApiWaitingFor extends Handler {
   }
 
   private getSpectatorWaitingForModel(game: IGame, gameAge: number, undoCount: number): WaitingForModel {
-    const inputs = this.playersWithInputs(game);
+    const inputs = this.playersWithRequiredInputs(game);
 
     if (game.gameAge > gameAge || game.undoCount > undoCount) {
       return { result: 'REFRESH', waitingFor: inputs };

@@ -115,9 +115,6 @@ export abstract class Draft {
   /**
    * Ask the player to choose from a set of cards.
    */
-  /**
-   * Ask the player to choose from a set of cards.
-   */
   private askPlayerToDraft(player: IPlayer, repick: boolean): void {
     const giveTo = this.givingTo(player);
     const cardsToKeep = this.cardsToKeep(player);
@@ -125,26 +122,31 @@ export abstract class Draft {
     let cardsToConsider: Array<IProjectCard>;
     let enabled: Array<boolean> | undefined;
     if (repick) {
-      cardsToConsider = [...player.draftHand, ...player.draftedCards.slice(-cardsToKeep)]
-      enabled = cardsToConsider.map((_, idx) => idx < player.draftHand.length);
+      cardsToConsider = [...player.draftHand, ...player.draftedCards.slice(-cardsToKeep)];
+      // Disable the picked card only if we're keeping one card. If we keep more than
+      // one card, we need to keep them all enabled since we might repick
+      // one of the cards we previously picked plus a new card.
+      if (cardsToKeep === 1) {
+        enabled = cardsToConsider.map((_, idx) => idx < player.draftHand.length);
+      }
     } else {
       cardsToConsider = player.draftHand;
     }
 
     const messageTitle = repick ?
-      'You can change your pick until all players have chosen a card. Passing to ${0}' :
+      'You can change your selection until all players have selected a card. Passing to ${0}' :
       (cardsToKeep === 1 ?
         'Select a card to keep and pass the rest to ${0}' :
         'Select two cards to keep and pass the rest to ${0}');
     const selectCard = new SelectCard(
       message(messageTitle, (b) => b.player(giveTo)),
-      repick ? 'Repick' : 'Keep',
+      'Select',
       cardsToConsider,
       {
         min: cardsToKeep, max: cardsToKeep, played: false,
         enabled: enabled,
       });
-    selectCard.polling = repick;
+    selectCard.optional = repick;
     player.setWaitingFor(selectCard
       .andThen((selected) => {
         if (repick) {

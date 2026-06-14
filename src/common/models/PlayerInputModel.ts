@@ -16,8 +16,8 @@ export type BaseInputModel = {
   title: string | Message;
   warning?: string | Message;
   buttonLabel: string;
-  polling?: boolean;
   autoTimerSeconds?: number;
+  optional?: boolean;
 }
 
 export type AndOptionsModel = BaseInputModel & {
