@@ -1,7 +1,7 @@
 <template>
   <div class="player_home_block player_home_block--setup nofloat">
     <template v-if="game.gameOptions.corpPoolDraftVariant && game.corpDraftPool && (isInitialDraftingPhase || isInitialResearchPhase)">
-      <dynamic-title title="Corporation Pool" :color="thisPlayer.color"/>
+      <DynamicTitle title="Corporation Pool" :color="thisPlayer.color"/>
       <div v-for="card in game.corpDraftPool" :key="card.name" class="cardbox">
         <Card :card="card">
           <template v-if="card.ownerName">
@@ -11,7 +11,7 @@
           </template>
         </Card>
       </div>
-      <dynamic-title v-if="isInitialDraftingPhase" title="Drawn Cards" :color="thisPlayer.color"/>
+      <DynamicTitle v-if="isInitialDraftingPhase" title="Drawn Cards" :color="thisPlayer.color"/>
     </template>
 
     <template v-if="isInitialDraftingPhase">
@@ -172,8 +172,6 @@ export default defineComponent({
     Turmoil,
     PlanetaryTracks,
     MoonBoard,
-    DynamicTitle,
-    PlanetaryTracks,
   },
   methods: {
     getPlayerCssForTurnOrder: (

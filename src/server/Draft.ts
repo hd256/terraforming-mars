@@ -318,7 +318,9 @@ export class CorpPoolDraft {
   }
 
   private askPlayer() {
-    if (this.game.corpDraftTurn === undefined) return;
+    if (this.game.corpDraftTurn === undefined) {
+      return;
+    }
     if (this.round === 1 && this.game.corpDraftTurn >= this.game.players.length) {
       this.game.corpDraftTurn = undefined;
       this.endRound();
@@ -334,12 +336,12 @@ export class CorpPoolDraft {
     // Find already picked corps to disable them and show owners
     const owners = new Map<CardName, {name: string, color: import('../common/Color').Color}>();
     if (this.game.corpDraftPool === undefined) {
-      throw new Error("corpDraftPool is undefined");
+      throw new Error('corpDraftPool is undefined');
     }
     const enabled = this.game.corpDraftPool.map(() => true);
     for (const p of this.game.players) {
       for (const picked of p.dealtCorporationCards) {
-        const idx = this.game.corpDraftPool.findIndex(c => c.name === picked.name);
+        const idx = this.game.corpDraftPool.findIndex((c) => c.name === picked.name);
         if (idx >= 0) {
           enabled[idx] = false;
           owners.set(picked.name, {name: p.name, color: p.color});
@@ -353,13 +355,15 @@ export class CorpPoolDraft {
       title,
       'Keep',
       this.game.corpDraftPool,
-      {min: 1, max: 1, enabled, showOwner: true, owners}
+      {min: 1, max: 1, enabled, showOwner: true, owners},
     ).andThen((cards) => {
       player.dealtCorporationCards.push(cards[0]);
-      if (this.round === 1) {
-        this.game.corpDraftTurn!++;
-      } else {
-        this.game.corpDraftTurn!--;
+      if (this.game.corpDraftTurn !== undefined) {
+        if (this.round === 1) {
+          this.game.corpDraftTurn++;
+        } else {
+          this.game.corpDraftTurn--;
+        }
       }
       this.game.save();
       this.askPlayer();

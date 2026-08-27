@@ -119,10 +119,12 @@ export default defineComponent({
       this.urlCopiedPlayerId = playerId;
     },
     copyAllUrls(): void {
-      if (this.game === undefined) return;
+      if (this.game === undefined) {
+        return;
+      }
       const path = window.location.href.replace(/game\?id=.*/, '');
       const players = [...this.game.players].sort((a, b) => a.name.localeCompare(b.name));
-      const text = players.map(player => `${player.name} - ${path}${this.getHref(player.id)}`).join('\n\n');
+      const text = players.map((player) => `${player.name} - ${path}${this.getHref(player.id)}`).join('\n\n');
       copyToClipboard(text);
       this.urlCopiedPlayerId = 'all';
     },

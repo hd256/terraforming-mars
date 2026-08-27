@@ -33,7 +33,7 @@ export class Merger extends PreludeCard {
     const game = player.game;
     let dealtCorps: Array<ICorporationCard>;
     if (game.gameOptions.corpPoolDraftVariant && game.gameOptions.twoCorpsVariant) {
-      dealtCorps = player.dealtCorporationCards.filter(c => !player.playedCards.some(pc => pc.name === c.name));
+      dealtCorps = player.dealtCorporationCards.filter((c) => !player.playedCards.some((pc) => pc.name === c.name));
       if (dealtCorps.length === 0) {
         dealtCorps = Merger.dealCorporations(player, game.corporationDeck);
       }

@@ -61,6 +61,7 @@ describe('ApiGame', () => {
           'aresExtremeVariant': false,
           'bannedCards': [],
           'boardName': 'tharsis',
+          'corpPoolDraftVariant': false,
           'draftVariant': false,
           'expansions': {
             'ares': false,
@@ -84,6 +85,7 @@ describe('ApiGame', () => {
           'includeFanMA': false,
           'initialDraftVariant': false,
           'ceosDraftVariant': false,
+          'playablePreludes': 2,
           'politicalAgendasExtension': 'Standard',
           'preludeDraftVariant': false,
           'randomMA': 'No randomization',

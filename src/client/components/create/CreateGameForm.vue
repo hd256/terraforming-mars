@@ -1330,13 +1330,6 @@ export default defineComponent({
           alert(error.message);
         });
     },
-    resetSettings() {
-      Object.assign(this, defaultCreateGameModel());
-      this.preludeToggled = false;
-      this.uploading = false;
-      if (this.typedRefs.cardsFilter) this.typedRefs.cardsFilter.selected = [];
-      if (this.typedRefs.cardsFilter2) this.typedRefs.cardsFilter2.selected = [];
-    },
   },
 });
 

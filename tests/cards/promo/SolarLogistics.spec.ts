@@ -32,10 +32,12 @@ describe('Solar Logistics', () => {
 
   it('Card Effects Work - card draw', () => {
     card.play(player);
+    card.resourceCount = 1;
     expect(player.cardsInHand).has.length(0);
     expect(card.onCardPlayedByAnyPlayer(player, card)).is.undefined;
     // I play space event
     expect(card.onCardPlayedByAnyPlayer(player, new BigAsteroid())).is.undefined;
     expect(player.cardsInHand).has.length(1);
+    expect(card.resourceCount).to.eq(0);
   });
 });

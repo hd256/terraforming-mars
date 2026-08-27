@@ -157,6 +157,9 @@ const TEMPLATE_EXPECTED: CreateGameModel = {
   customCeos: [],
   startingCeos: 3,
   startingPreludes: 4,
+  playablePreludes: 2,
+  corpPoolDraftVariant: false,
+  extraCorporationsInPool: 2,
   preludeDraftVariant: false,
   ceosDraftVariant: false,
 };

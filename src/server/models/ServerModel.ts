@@ -58,7 +58,7 @@ export class Server {
       const enabled = game.corpDraftPool.map(() => true);
       for (const p of game.players) {
         for (const picked of p.dealtCorporationCards) {
-          const idx = game.corpDraftPool.findIndex(c => c.name === picked.name);
+          const idx = game.corpDraftPool.findIndex((c) => c.name === picked.name);
           if (idx >= 0) {
             enabled[idx] = false;
             owners.set(picked.name, {name: p.name, color: p.color});

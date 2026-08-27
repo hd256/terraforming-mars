@@ -1,7 +1,7 @@
 const jsdom = require('jsdom');
 const {JSDOM} = jsdom;
 
-const dom = new JSDOM(`<!DOCTYPE html>`);
+const dom = new JSDOM('<!DOCTYPE html>', {url: 'http://localhost'});
 
 global.document = dom.window.document;
 global.navigator = dom.window.navigator;
@@ -17,3 +17,5 @@ global.SVGElement = dom.window.SVGElement;
 global.Text = dom.window.Text;
 global.Comment = dom.window.Comment;
 global.getComputedStyle = dom.window.getComputedStyle;
+global.localStorage = dom.window.localStorage;
+global.sessionStorage = dom.window.sessionStorage;
