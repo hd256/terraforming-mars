@@ -13,4 +13,4 @@ jobs:
     steps:
       - name: Send update request to server
         run: |
-          curl -fsS -m 30 -X POST "https://spacepirates.pirateprincess.co:8443/update"
+          curl -fsS -m 30 -X POST "https://spacepirates.pirateprincess.co/update"
