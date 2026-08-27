@@ -91,9 +91,11 @@ describe('ApiCreateGame', () => {
         modularMA: false,
         draftVariant: false,
         initialDraft: false,
+        corpPoolDraftVariant: false,
         preludeDraftVariant: false,
         ceosDraftVariant: false,
         startingCorporations: 0,
+        extraCorporationsInPool: 0,
         shuffleMapOption: false,
         randomMA: RandomMAOptionType.NONE,
         includeFanMA: false,
@@ -113,6 +115,7 @@ describe('ApiCreateGame', () => {
         customCeos: [],
         startingCeos: 0,
         startingPreludes: 0,
+        playablePreludes: 0,
       };
       req.emitter.emit('data', JSON.stringify(newGameConfig));
       req.emitter.emit('end');
