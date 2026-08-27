@@ -1,0 +1,16 @@
+name: Trigger Server Update
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  trigger-update:
+    name: Trigger Server Update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send update request to server
+        run: |
+          curl -fsS -m 30 -X POST "https://spacepirates.pirateprincess.co/update"
