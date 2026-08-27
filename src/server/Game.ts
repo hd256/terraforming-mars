@@ -86,6 +86,7 @@ import {SpaceType} from '../common/boards/SpaceType';
 import { Merger } from './cards/promo/Merger';
 import {ICard} from './cards/ICard';
 import {generateGameName} from './GameName';
+import {byKey} from '@/common/utils/Ordering';
 
 // Can be overridden by tests
 let createGameLog: () => Array<LogMessage> = () => [];
@@ -804,7 +805,7 @@ export class Game implements IGame, Logger {
       return;
     }
     if (this.gameIsOver()) {
-      this.log('Final greenery placement', (b) => b.forNewGeneration());
+      this.log('Final greenery placement', (b) => b.forNotice());
       this.takeNextFinalGreeneryAction();
       return;
     } else {
@@ -914,6 +915,7 @@ export class Game implements IGame, Logger {
       if (player.tableau.has(CardName.PRESERVATION_PROGRAM)) {
         player.preservationProgram = true;
       }
+      player.trThisGeneration = 0;
     });
 
     if (this.gameOptions.draftVariant) {
@@ -1171,7 +1173,7 @@ export class Game implements IGame, Logger {
       // You many not place greeneries in solo mode unless you have already won the game
       // (e.g. completed global parameters, reached TR63.)
       if (this.isSoloMode() && !this.isSoloModeWin()) {
-        this.log('Final greenery phase is skipped since you did not complete the win condition.', (b) => b.forNewGeneration());
+        this.log('Final greenery phase is skipped since you did not complete the win condition.', (b) => b.forNotice());
         continue;
       }
 
@@ -1675,7 +1677,7 @@ export class Game implements IGame, Logger {
           return true;
         }
       })
-      .sort((a, b) => a.cost - b.cost);
+      .toSorted(byKey('cost'));
   }
 
   public log(message: string, f?: (builder: LogMessageBuilder) => void, options?: {reservedFor?: IPlayer}) {
@@ -1732,9 +1734,7 @@ export class Game implements IGame, Logger {
 
     const ceoDeck = CeoDeck.deserialize(d.ceoDeck, rng);
 
-    // TODO(kberg): remove ?? generateGameName(...) by 2026-07-01
-    const name = d.name ?? generateGameName(UnseededRandom.INSTANCE);
-    const game = new Game(d.id, name, players, first, d.activePlayer, d.spectatorId, gameOptions, rng, board, projectDeck, corporationDeck, preludeDeck, ceoDeck, d.tags);
+    const game = new Game(d.id, d.name, players, first, d.activePlayer, d.spectatorId, gameOptions, rng, board, projectDeck, corporationDeck, preludeDeck, ceoDeck, d.tags);
     game.resettable = true;
     game.spectatorId = d.spectatorId;
     game.createdTime = new Date(d.createdTimeMs);

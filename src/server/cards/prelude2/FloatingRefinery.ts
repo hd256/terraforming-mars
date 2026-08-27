@@ -1,19 +1,13 @@
 import {IProjectCard} from '../IProjectCard';
 import {IActionCard} from '../ICard';
-import {IPlayer} from '../../IPlayer';
-import {Card} from '../Card';
+import {ActionCard} from '../ActionCard';
 import {CardType} from '../../../common/cards/CardType';
 import {CardName} from '../../../common/cards/CardName';
 import {CardRenderer} from '../render/CardRenderer';
 import {CardResource} from '../../../common/CardResource';
 import {Tag} from '../../../common/cards/Tag';
-import {SelectCard} from '../../inputs/SelectCard';
-import {Resource} from '../../../common/Resource';
-import {OrOptions} from '../../inputs/OrOptions';
-import {SelectOption} from '../../inputs/SelectOption';
 
-
-export class FloatingRefinery extends Card implements IProjectCard, IActionCard {
+export class FloatingRefinery extends ActionCard implements IProjectCard, IActionCard {
   constructor() {
     super({
       type: CardType.ACTIVE,
@@ -24,6 +18,23 @@ export class FloatingRefinery extends Card implements IProjectCard, IActionCard 
 
       behavior: {
         addResources: {tag: Tag.VENUS},
+      },
+
+      action: {
+        or: {
+          autoSelect: true,
+          behaviors: [
+            {
+              title: 'Remove 2 floaters from ANY CARD to gain 1 titanium and 2 M€',
+              removeResourcesFromAnyCard: {type: CardResource.FLOATER, count: 2},
+              stock: {titanium: 1, megacredits: 2},
+            },
+            {
+              title: 'Add 1 floater to this card',
+              addResources: 1,
+            },
+          ],
+        },
       },
 
       metadata: {
@@ -39,42 +50,5 @@ export class FloatingRefinery extends Card implements IProjectCard, IActionCard 
         description: 'Add 1 floater here for each Venus tag you have.',
       },
     });
-  }
-
-  public canAct() {
-    return true;
-  }
-
-  public action(player: IPlayer) {
-    const floater2Cards = player.tableau.filter((card) => card.resourceType === CardResource.FLOATER && card.resourceCount >= 2);
-    const addFloater = new SelectOption('Add 1 floater to this card',
-      'Add floater',
-    ).andThen(() => {
-      player.addResourceTo(this, {log: true});
-      return undefined;
-    });
-
-    const remove2floaters = new SelectOption(
-      'Remove 2 floaters from ANY CARD to gain 1 titanium and 2 M€',
-      'Remove floaters',
-    ).andThen(() => {
-      return new SelectCard('Remove 2 floaters from ANY CARD to gain 1 titanium and 2 M€',
-        'Choose a card to spend 2 floaters from, to gain 1 titanium and 2 M€.',
-        floater2Cards,
-      ).andThen(
-        ([card]) => {
-          player.removeResourceFrom(card, 2);
-          player.stock.add(Resource.MEGACREDITS, 2, {log: true});
-          player.stock.add(Resource.TITANIUM, 1, {log: true});
-          return undefined;
-        });
-    });
-
-    if (floater2Cards.length > 0) {
-      return new OrOptions(remove2floaters, addFloater);
-    } else {
-      player.addResourceTo(this, {log: true});
-      return undefined;
-    }
   }
 }

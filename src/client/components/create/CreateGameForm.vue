@@ -601,7 +601,7 @@ import CardsFilter from '@/client/components/create/CardsFilter.vue';
 import AppButton from '@/client/components/common/AppButton.vue';
 import {playerColorClass} from '@/common/utils/utils';
 import {RandomMAOptionType} from '@/common/ma/RandomMAOptionType';
-import {GameId} from '@/common/Types';
+import {GameId, JSONObject} from '@/common/Types';
 import {AgendaStyle} from '@/common/turmoil/Types';
 import PreferencesIcon from '@/client/components/PreferencesIcon.vue';
 import {getCard} from '@/client/cards/ClientCardManifest';
@@ -611,11 +611,13 @@ import {CreateGameModel} from './CreateGameModel';
 import {paths} from '@/common/app/paths';
 import {JSONProcessor} from './JSONProcessor';
 import {defaultCreateGameModel} from './defaultCreateGameModel';
+import {CreateGameSettingsStorage} from './CreateGameSettingsStorage';
 import {getColony} from '@/client/colonies/ClientColonyManifest';
 import {RULEBOOK_URLS, WIKI, WIKI_URLS} from '@/client/utils/WikiLinks';
 import {setDocumentTitle} from '@/client/utils/documentTitle';
 
 const REVISED_COUNT_ALGORITHM = false;
+const createGameSettingsStorage = new CreateGameSettingsStorage();
 
 
 type Refs = {
@@ -627,6 +629,7 @@ type Refs = {
 type FormModel = {
   preludeToggled: boolean;
   uploading: boolean;
+  previousViewport: string;
 };
 
 export default defineComponent({
@@ -636,6 +639,7 @@ export default defineComponent({
       ...defaultCreateGameModel(),
       preludeToggled: false,
       uploading: false,
+      previousViewport: '',
     };
   },
   components: {
@@ -696,27 +700,25 @@ export default defineComponent({
   },
   mounted() {
     setDocumentTitle('Create New Game');
-    const lastSettings = localStorage.getItem('lastGameSettings');
-    if (lastSettings) {
-      try {
-        const results = JSON.parse(lastSettings);
-        const processor = new JSONProcessor(this);
-        processor.applyJSON(results);
+    this.restoreLastSettings();
 
-        nextTick(() => {
-          try {
-            if (this.showBannedCards) this.typedRefs.cardsFilter.selected = processor.bannedCards;
-            if (this.showIncludedCards) this.typedRefs.cardsFilter2.selected = processor.includedCards;
-            if (!this.seededGame) this.seed = Math.random();
-            this.solarPhaseOption = Boolean(processor.solarPhaseOption);
-          } catch (e) {
-            console.error('Failed to apply lastGameSettings in nextTick', e);
-          }
-        });
-      } catch (e) {
-        console.error('Failed to load lastGameSettings', e);
-      }
+    // Set the viewport width to width=device-width on the create game form so mobile browsers use their actual CSS viewport width.
+    // The current global viewport is width=1260, which prevents the create game form from using the device width on phones.
+    // This is a temporary solution in order to make this edit scoped to the create game form.
+    // TODO: Once responsiveness covers the whole project, this code should be removed and the tag in index.html should be updated directly.
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport !== null) {
+      this.previousViewport = viewport.getAttribute('content') ?? '';
+      viewport.setAttribute(
+        'content',
+        'width=device-width, initial-scale=1, viewport-fit=cover',
+      );
     }
+  },
+  beforeUnmount() {
+    document
+      .querySelector('meta[name="viewport"]')
+      ?.setAttribute('content', this.previousViewport);
   },
   computed: {
     wikiUrls(): typeof RULEBOOK_URLS & typeof WIKI_URLS {
@@ -756,6 +758,74 @@ export default defineComponent({
     },
   },
   methods: {
+    restoreLastSettings() {
+      const settings = createGameSettingsStorage.loadSettings();
+      if (settings === undefined) {
+        return;
+      }
+      try {
+        const processor = this.applySettings(settings);
+        if (processor.warnings.length > 0) {
+          this.showSettingsLoadResult('Restore settings', processor);
+        }
+      } catch (e) {
+        // TODO(rusliksu): show the restore error in the UI instead of logging only to the console.
+        console.warn('Could not restore create game settings:', e);
+      }
+    },
+    applySettings(json: JSONObject): JSONProcessor {
+      const component: CreateGameModel = this;
+      const refs = this.typedRefs;
+      const processor = new JSONProcessor(component);
+      this.uploading = true;
+      try {
+        processor.applyJSON(json);
+      } catch (e) {
+        this.uploading = false;
+        throw e;
+      }
+      nextTick(() => {
+        try {
+          if (component.showBannedCards && refs.cardsFilter) {
+            refs.cardsFilter.selected = processor.bannedCards;
+          }
+          if (component.showIncludedCards && refs.cardsFilter2) {
+            refs.cardsFilter2.selected = processor.includedCards;
+          }
+          if (!component.seededGame) {
+            component.seed = Math.random();
+          }
+          component.solarPhaseOption = Boolean(processor.solarPhaseOption);
+        } finally {
+          this.uploading = false;
+        }
+      });
+      return processor;
+    },
+    showSettingsLoadResult(title: string, processor: JSONProcessor) {
+      const root = vueRoot(this);
+      if (processor.warnings.length > 0) {
+        root.showAlert(title, 'Settings loaded with these warnings: \n' + processor.warnings.join('\n'));
+      } else {
+        root.showAlert(title, 'Settings loaded.');
+      }
+    },
+    resetSettings() {
+      createGameSettingsStorage.clearSettings();
+      Object.assign(this, defaultCreateGameModel(), {
+        preludeToggled: false,
+        uploading: false,
+      });
+      nextTick(() => {
+        const refs = this.typedRefs;
+        if (refs.cardsFilter) {
+          refs.cardsFilter.selected = [];
+        }
+        if (refs.cardsFilter2) {
+          refs.cardsFilter2.selected = [];
+        }
+      });
+    },
     async downloadSettings() {
       const serializedData = await this.serializeSettings();
 
@@ -771,44 +841,16 @@ export default defineComponent({
       const refs = this.typedRefs;
       const file = refs.file.files !== null ? refs.file.files[0] : undefined;
       const reader = new FileReader();
-      const component: CreateGameModel = this;
-      const root = vueRoot(this);
-
 
       reader.addEventListener('load', () => {
         try {
           const readerResults = reader.result;
-          const processor = new JSONProcessor(component);
           if (typeof(readerResults) === 'string') {
-            this.uploading = true;
-            const results = JSON.parse(readerResults);
-            processor.applyJSON(results);
-
-            nextTick(() => {
-              try {
-                if (component.showBannedCards) {
-                  refs.cardsFilter.selected = processor.bannedCards;
-                }
-                if (component.showIncludedCards) {
-                  refs.cardsFilter2.selected = processor.includedCards;
-                }
-                if (!component.seededGame) {
-                  component.seed = Math.random();
-                }
-                // set to alter after any watched properties
-                component.solarPhaseOption = Boolean(processor.solarPhaseOption);
-                this.uploading = false;
-              } catch (e) {
-                root.showAlert('Upload settings', 'Error reading JSON ' + e);
-              }
-            });
-          }
-          if (processor.warnings.length > 0) {
-            root.showAlert('Upload settings', 'Settings loaded with these warnings: \n' + processor.warnings.join('\n'));
-          } else {
-            root.showAlert('Upload settings', 'Settings loaded.');
+            const processor = this.applySettings(JSON.parse(readerResults));
+            this.showSettingsLoadResult('Upload settings', processor);
           }
         } catch (e) {
+          const root = vueRoot(this);
           root.showAlert('Upload settings', 'Error loading settings ' + e);
         }
       }, false);
@@ -1262,7 +1304,7 @@ export default defineComponent({
       if (dataToSend === undefined) {
         return;
       }
-      localStorage.setItem('lastGameSettings', dataToSend);
+      createGameSettingsStorage.saveSettings(JSON.parse(dataToSend) as JSONObject);
       const onSuccess = (json: any) => {
         if (json.players.length === 1) {
           window.location.href = 'player?id=' + json.players[0].id;

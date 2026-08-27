@@ -7,7 +7,7 @@ import {Game} from '../../src/server/Game';
 import {TestPlayer} from '../TestPlayer';
 import {restoreTestDatabase, setTestDatabase} from '../testing/setup';
 import {testGame} from '../TestGame';
-import {GameId} from '../../src/common/Types';
+import {GameId, ParticipantId} from '../../src/common/Types';
 import {statusCode} from '../../src/common/http/statusCode';
 import {cast} from '@/common/utils/utils';
 import {SelectInitialCards} from '../../src/server/inputs/SelectInitialCards';
@@ -45,6 +45,7 @@ export type DatabaseTestDescriptor<T extends ITestDatabase> = {
     markFinished: boolean,
     moreCleaning: boolean,
     sessions: boolean,
+    storeParticipants: boolean,
   }>,
   otherTests?(dbFactory: () => T): void,
 };
@@ -301,6 +302,28 @@ export function describeDatabaseSuite<T extends ITestDatabase>(dtor: DatabaseTes
       await expect(db.getGameVersion('game-id-123', 0)).to.be.rejectedWith(/Game game-id-123 not found/);
     });
 
+    it('saveGame updates in place when re-saving an existing saveId', async () => {
+      const player = TestPlayer.BLACK.newPlayer();
+      const game = Game.newInstance('game-id', [player], player, 'spectatorid');
+      await db.lastSaveGamePromise;
+      expect(game.lastSaveId).eq(1);
+
+      // A normal save at a fresh saveId (1).
+      player.megaCredits = 100;
+      await db.saveGame(game);
+      expect(await db.getSaveIds(game.id)).has.members([0, 1]);
+      expect((await db.getGameVersion(game.id, 1)).players[0].megaCredits).eq(100);
+
+      // Re-save the same saveId (1) with a changed value. This is the upsert / ON CONFLICT
+      // path: the existing row is updated in place rather than adding a new save, and the
+      // updated value reads back.
+      player.megaCredits = 200;
+      game.lastSaveId = 1;
+      await db.saveGame(game);
+      expect(await db.getSaveIds(game.id)).has.members([0, 1]);
+      expect((await db.getGameVersion(game.id, 1)).players[0].megaCredits).eq(200);
+    });
+
     it('participantIds', async () => {
       expect(await db.getParticipants()).is.empty;
       testGame(2, {}, '1');
@@ -337,6 +360,27 @@ export function describeDatabaseSuite<T extends ITestDatabase>(dtor: DatabaseTes
         },
       ]);
     });
+
+    if (dtor.omit?.storeParticipants !== true) {
+      it('storeParticipants', async () => {
+        const gameId: GameId = 'g-dup';
+        const participantIds: Array<ParticipantId> = ['p-player1', 'p-player2'];
+
+        await db.storeParticipants({gameId, participantIds});
+
+        expect(await db.getParticipants()).deep.eq([{gameId, participantIds}]);
+      });
+
+      it('storeParticipants is reentrant', async () => {
+        const gameId: GameId = 'g-dup';
+        const participantIds: Array<ParticipantId> = ['p-player1', 'p-player2'];
+
+        await db.storeParticipants({gameId, participantIds});
+        await db.storeParticipants({gameId, participantIds});
+
+        expect(await db.getParticipants()).deep.eq([{gameId, participantIds}]);
+      });
+    }
 
     it('getGameId by PlayerID and Spectator ID', async () => {
       testGame(2, {}, '1');

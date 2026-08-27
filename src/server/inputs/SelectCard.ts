@@ -9,6 +9,7 @@ import {IPlayer} from '../IPlayer';
 import {Color} from '../../common/Color';
 import {cardsToModel} from '../models/ModelUtils';
 import {InputError} from './InputError';
+import {SelectOption} from './SelectOption';
 
 export type Options = {
   max: number,
@@ -47,6 +48,13 @@ export class SelectCard<T extends ICard> extends BasePlayerInput<ReadonlyArray<T
       owners: config?.owners ?? new Map(),
     };
     this.buttonLabel = buttonLabel;
+  }
+
+  public maybeConvertToSelectOption(title: string | Message): SelectCard<T> | SelectOption {
+    if (this.cards.length !== 1) {
+      return this;
+    }
+    return new SelectOption(title, this.buttonLabel).andThen(() => this.cb(this.cards));
   }
 
   public toModel(player: IPlayer): SelectCardModel {
