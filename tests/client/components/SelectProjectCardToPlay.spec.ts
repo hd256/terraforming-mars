@@ -11,6 +11,7 @@ import {PaymentTester} from './PaymentTester';
 import {Payment} from '@/common/inputs/Payment';
 import {CardModel} from '@/common/models/CardModel';
 import {PreferencesManager} from '@/client/utils/PreferencesManager';
+import {CardOrderStorage} from '@/client/utils/CardOrderStorage';
 import {SelectProjectCardToPlayResponse} from '@/common/inputs/InputResponse';
 import {asComplete} from './utils/models';
 
@@ -28,10 +29,10 @@ describe('SelectProjectCardToPlay', () => {
   });
 
   it('using sort order for cards', async () => {
-    localStorage.setItem('cardOrderp-foo', JSON.stringify({
+    CardOrderStorage.updateCardOrder('p-foo', {
       [CardName.ANTS]: 2,
       [CardName.BIRDS]: 1,
-    }));
+    });
     const sortable = mount(SelectProjectCardToPlay, {
       ...globalConfig,
       props: {
@@ -253,7 +254,7 @@ describe('SelectProjectCardToPlay', () => {
     expect(saveResponse.payment).deep.eq(Payment.of({megacredits: 6}));
   });
 
-  it('Paying for Soil Enrichment with Psychophriles', async () => {
+  it('Paying for Soil Enrichment with Psychrophiles', async () => {
     // Soil Enrichment reserves 1 microbe for itself, so only 2 microbes available.
     // Greedy: uses both available microbes (=4 MC), MC fills remaining 2.
     const wrapper = setupCardForPurchase(
@@ -275,7 +276,7 @@ describe('SelectProjectCardToPlay', () => {
     expect(saveResponse.payment).deep.eq(Payment.of({microbes: 2, megacredits: 2}));
   });
 
-  it('Paying for Soil Enrichment with Psychophriles while another card has microbes', async () => {
+  it('Paying for Soil Enrichment with Psychrophiles while another card has microbes', async () => {
     // Tardigrades provides a spare microbe, so all 3 microbes from Psychrophiles are available.
     // Greedy: uses all 3 microbes (=6 MC), MC=0.
     const tableau: Array<Partial<CardModel>> = [
@@ -299,7 +300,7 @@ describe('SelectProjectCardToPlay', () => {
     expect(saveResponse.payment).deep.eq(Payment.of({microbes: 3, megacredits: 0}));
   });
 
-  it('Paying for other card with Psychophriles uses all microbes', async () => {
+  it('Paying for other card with Psychrophiles uses all microbes', async () => {
     // Greedy: uses all 3 microbes (=6 MC), MC fills remaining 4.
     const wrapper = setupCardForPurchase(
       CardName.BUSHES, 10,
@@ -516,7 +517,7 @@ describe('SelectProjectCardToPlay', () => {
     expect(saveResponse.payment).deep.eq(Payment.of({graphene: 7, megacredits: 2}));
   });
 
-  it('initial setup allows for steel and titanium when using Last Restort Ingenuity', async () => {
+  it('initial setup allows for steel and titanium when using Last Resort Ingenuity', async () => {
     // Earth Office costs 1, but has no building tag or space tag.
     const wrapper = setupCardForPurchase(
       CardName.EARTH_OFFICE, 0,
@@ -593,8 +594,8 @@ describe('SelectProjectCardToPlay', () => {
     expect(saveResponse.payment).deep.eq(Payment.of({heat: 4, megacredits: 6}));
   });
 
-  it('Luna Trade Federation: Can use titanium by default', async () => {
-    // Luna Trade Federation rate is titaniumValue-1=3. Greedy: uses both Ti (=6 MC), MC fills 4.
+  it('Luna Trade Federation: Does not use titanium by default when megacredits cover the cost', async () => {
+    // Luna Trade Federation rate is titaniumValue-1=3, worse than MC, so MC pays it all.
     const wrapper = setupCardForPurchase(
       CardName.BIRDS, 10,
       {megacredits: 10, titanium: 2, titaniumValue: 4},
@@ -602,13 +603,25 @@ describe('SelectProjectCardToPlay', () => {
 
     const tester = new PaymentTester(wrapper);
     await tester.nextTick();
-    tester.expectPayment({megacredits: 4, titanium: 2});
+    tester.expectPayment({megacredits: 10, titanium: 0});
 
     await tester.clickMax('titanium');
     tester.expectPayment({megacredits: 4, titanium: 2});
 
     await tester.clickSave();
     expect(saveResponse.payment).deep.eq(Payment.of({titanium: 2, megacredits: 4}));
+  });
+
+  it('Luna Trade Federation: Uses titanium by default only to cover a megacredit shortfall', async () => {
+    // Luna Trade Federation rate is 3. 5 MC short, so ceil(5/3)=2 Ti (=6 MC), MC fills 4.
+    const wrapper = setupCardForPurchase(
+      CardName.BIRDS, 10,
+      {megacredits: 5, titanium: 3, titaniumValue: 4},
+      {paymentOptions: {lunaTradeFederationTitanium: true, titanium: false}});
+
+    const tester = new PaymentTester(wrapper);
+    await tester.nextTick();
+    tester.expectPayment({megacredits: 4, titanium: 2});
   });
 
   it('Luna Trade Federation: Can use titanium at normal rate when titanium is true', async () => {

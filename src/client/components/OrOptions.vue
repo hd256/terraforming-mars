@@ -1,5 +1,5 @@
 <template>
-  <div class='wf-options'>
+  <div class="wf-options">
     <label v-if="showtitle"><div>{{ $t(playerinput.title) }}</div></label>
     <div v-if="autoTimerLeft > 0" class="text-error" style="margin-bottom: 8px">
       Auto select in {{ autoTimerLeft }}s
@@ -7,17 +7,17 @@
     <label v-if="playerinput.warning !== undefined" class="card-warning"><div>({{ $t(playerinput.warning) }})</div></label>
     <div v-for="(option, idx) in displayedOptions" :key="idx">
       <label class="form-radio" ref="optionLabels">
-        <input v-model="selectedOption" type="radio" :name="radioElementName" :value="option" >
-        <i class="form-icon" ></i>
+        <input v-model="selectedOption" type="radio" :name="radioElementName" :value="option">
+        <i class="form-icon"></i>
         <span>{{ $t(option.title) }}</span>
       </label>
       <div v-if="selectedIdx === idx" style="margin-left: 30px">
         <PlayerInputFactory ref="inputfactory"
-                              :playerView="playerView"
-                              :playerinput="option"
-                              :onsave="playerFactorySaved(idx)"
-                              :showsave="showsave && showChildSaveButton(option)"
-                              :showtitle="false" />
+          :playerView="playerView"
+          :playerinput="option"
+          :onsave="playerFactorySaved(idx)"
+          :showsave="showsave && showChildSaveButton(option)"
+          :showtitle="false" />
       </div>
     </div>
     <div v-if="showsave && selectedOption && !showChildSaveButton(selectedOption)">
@@ -39,6 +39,10 @@ import {getPreferences} from '@/client/utils/PreferencesManager';
 import {InputResponse, OrOptionsResponse} from '@/common/inputs/InputResponse';
 
 let unique = 0;
+
+function isDisplayed(option: PlayerInputModel): boolean {
+  return !(option.type === 'card' && option.showOnlyInLearnerMode !== false && !getPreferences().learner_mode);
+}
 
 export default defineComponent({
   name: 'OrOptions',
@@ -66,15 +70,7 @@ export default defineComponent({
     AppButton,
   },
   data() {
-    const displayedOptions: Array<PlayerInputModel> = [];
-    const originalIndices: Array<number> = [];
-    this.playerinput.options.forEach((option, i) => {
-      if (option.type === 'card' && option.showOnlyInLearnerMode !== false && !getPreferences().learner_mode) {
-        return;
-      }
-      displayedOptions.push(option);
-      originalIndices.push(i);
-    });
+    const displayedOptions = this.playerinput.options.filter(isDisplayed);
     const initialIdx = this.playerinput.initialIdx ?? 0;
     // Special case: If the first recommended displayed option is SelectProjectCardToPlay, and none of them are enabled, skip it.
     let selectedIdx = initialIdx;
@@ -84,11 +80,8 @@ export default defineComponent({
       selectedIdx = initialIdx + 1;
     }
     return {
-      displayedOptions,
-      originalIndices,
       radioElementName: 'selectOption' + unique++,
       selectedOption: displayedOptions[selectedIdx],
-      selectedIdx,
       autoTimerLeft: (this.playerinput.autoTimerSeconds || 0),
       interval: 0,
     };
@@ -109,14 +102,30 @@ export default defineComponent({
       clearInterval(this.interval);
     }
   },
+  computed: {
+    displayedOptions(): Array<PlayerInputModel> {
+      return this.playerinput.options.filter(isDisplayed);
+    },
+    originalIndices(): Array<number> {
+      return this.displayedOptions.map((option) => this.playerinput.options.indexOf(option));
+    },
+    selectedIdx(): number {
+      return this.displayedOptions.indexOf(this.selectedOption);
+    },
+  },
   watch: {
-    selectedOption(newOption: PlayerInputModel) {
+    displayedOptions(newOptions: Array<PlayerInputModel>) {
+      // Learner mode can hide the selected option.
+      if (!newOptions.includes(this.selectedOption)) {
+        this.selectedOption = newOptions[0];
+      }
+    },
+    selectedOption() {
       if (this.interval) {
         clearInterval(this.interval);
         this.interval = 0;
         this.autoTimerLeft = 0;
       }
-      this.selectedIdx = this.displayedOptions.indexOf(newOption);
       // Clicking the option can shift elements on the page.
       // This preserves the location of the option button the user just clicked by
       // tracking where it was on the screen, where it moved, and then repositioning it.

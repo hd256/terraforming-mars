@@ -32,7 +32,7 @@ export interface ICounter {
  *
  * The constructor accepts the game state, which is essentially the player, and the card being played or acted upon.
  */
-export class Counter {
+export class Counter implements ICounter {
   /**
    * True if the `this.card` is still in the player's hand.
    *
@@ -43,7 +43,7 @@ export class Counter {
    * The other part of why includeCard is interesting is sometimes this counting is related to a card
    * being replayed via Robotic Workforce. In that case, the card is already played.
    *
-   * Counter is not meant to be kept between game states, so dispose of this after making calcuations.
+   * Counter is not meant to be kept between game states, so dispose of this after making calculations.
    */
   private cardIsUnplayed: boolean;
 
@@ -182,17 +182,17 @@ export class Counter {
 
     if (countable.moon !== undefined) {
       const moon = countable.moon;
-      MoonExpansion.ifMoon(game, (moonData) => {
-        if (moon.habitatRate) {
-          sum += moonData.habitatRate;
-        }
-        if (moon.miningRate) {
-          sum += moonData.miningRate;
-        }
-        if (moon.logisticRate) {
-          sum += moonData.logisticRate;
-        }
-      });
+      const moonData = MoonExpansion.getMoonData(game);
+      if (moon.habitatRate) {
+        sum += moonData.habitatRate;
+      }
+      if (moon.miningRate) {
+        sum += moonData.miningRate;
+      }
+      if (moon.logisticRate) {
+        sum += moonData.logisticRate;
+      }
+
       if (moon.habitat) {
         sum += maybeAdjacentSpaces(MoonExpansion.spaces(game, TileType.MOON_HABITAT, {surfaceOnly: true})).length;
       }

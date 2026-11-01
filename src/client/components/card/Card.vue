@@ -1,24 +1,24 @@
 <template>
   <div class="card-container filterDiv hover-hide-res" :class="cardClasses">
-      <div class="card-content-wrapper" v-i18n @mouseover="hovering = true" @mouseleave="hovering = false">
-          <div v-if="!isStandardProject" class="card-cost-and-tags">
-              <CardCost :amount="cost" :newCost="reducedCost" />
-              <div v-if="showPlayerCube" :class="playerCubeClass"></div>
-              <CardHelp v-if="hasHelpText" :name="card.name" :hovering="hovering" />
-              <CardTags :tags="tags" />
-          </div>
-          <CardTitle :title="card.name" :type="cardType"/>
-          <CardContent
-              :metadata="cardMetadata"
-              :requirements="cardRequirements"
-              :isCorporation="isCorporationCard"
-              :bottomPadding="bottomPadding" />
+    <div class="card-content-wrapper" v-i18n @mouseover="hovering = true" @mouseleave="hovering = false">
+      <div v-if="!isStandardProject" class="card-cost-and-tags">
+        <CardCost :amount="cost" :newCost="reducedCost" />
+        <div v-if="showPlayerCube" :class="playerCubeClass"></div>
+        <CardHelp v-if="helpText !== undefined" :name="card.name" :helpText="helpText" :hovering="hovering" />
+        <CardTags :tags="tags" />
       </div>
-      <CardExpansion :expansion="cardExpansion" :isCorporation="isCorporationCard" :isResourceCard="isResourceCard" :compatibility="cardCompatibility" />
-      <CardResourceCounter v-if="hasResourceType" :amount="resourceAmount" :type="resourceType" />
-      <CardVictoryPoints v-if="cardMetadata.victoryPoints" :victoryPoints="cardMetadata.victoryPoints" />
-      <CardExtraContent :card="card" />
-      <slot></slot>
+      <CardTitle :title="card.name" :type="cardType" />
+      <CardContent
+        :metadata="cardMetadata"
+        :requirements="cardRequirements"
+        :isCorporation="isCorporationCard"
+        :bottomPadding="bottomPadding" />
+    </div>
+    <CardExpansion :expansion="cardExpansion" :isCorporation="isCorporationCard" :isResourceCard="isResourceCard" :compatibility="cardCompatibility" />
+    <CardResourceCounter v-if="hasResourceType" :amount="resourceAmount" :type="resourceType" />
+    <CardVictoryPoints v-if="cardMetadata.victoryPoints" :victoryPoints="cardMetadata.victoryPoints" />
+    <CardExtraContent :card="card" />
+    <slot></slot>
   </div>
 </template>
 
@@ -27,7 +27,6 @@
 import {defineComponent} from 'vue';
 
 import {CardModel} from '@/common/models/CardModel';
-import {CARD_HELP_TEXT} from '@/client/cards/CardHelpText';
 import CardTitle from './CardTitle.vue';
 import CardResourceCounter from './CardResourceCounter.vue';
 import CardCost from './CardCost.vue';
@@ -43,6 +42,7 @@ import {Tag} from '@/common/cards/Tag';
 import {getPreferences} from '@/client/utils/PreferencesManager';
 import {CardResource} from '@/common/CardResource';
 import {getCardOrThrow} from '@/client/cards/ClientCardManifest';
+import {ClientCard} from '@/common/cards/ClientCard';
 import {Color} from '@/common/Color';
 import {CardRequirementDescriptor} from '@/common/cards/CardRequirementDescriptor';
 import {GameModule} from '@/common/cards/GameModule';
@@ -89,15 +89,14 @@ export default defineComponent({
     },
   },
   data() {
-    const cardName = this.card.name;
-    const card = getCardOrThrow(cardName);
-
     return {
-      cardInstance: card,
       hovering: false,
     };
   },
   computed: {
+    cardInstance(): ClientCard {
+      return getCardOrThrow(this.card.name);
+    },
     cardExpansion(): GameModule {
       return this.cardInstance.module;
     },
@@ -197,8 +196,8 @@ export default defineComponent({
       }
       return '';
     },
-    hasHelpText(): boolean {
-      return CARD_HELP_TEXT[this.card.name] !== undefined;
+    helpText(): string | undefined {
+      return this.cardInstance.metadata.helpText;
     },
     showPlayerCube(): boolean {
       return getPreferences().experimental_ui && this.actionUsed;

@@ -12,7 +12,7 @@ import {SerializedTimer} from '../src/common/SerializedTimer';
 import {Player} from '../src/server/Player';
 import {Color} from '../src/common/Color';
 import {CardName} from '../src/common/cards/CardName';
-import {doWait, getSendADelegateOption, runAllActions, setRulingParty} from './TestingUtils';
+import {doWait, formatMessage, getSendADelegateOption, runAllActions, setRulingParty} from './TestingUtils';
 import {SelfReplicatingRobots} from '../src/server/cards/promo/SelfReplicatingRobots';
 import {IProjectCard} from '../src/server/cards/IProjectCard';
 import {Pets} from '../src/server/cards/base/Pets';
@@ -75,6 +75,30 @@ describe('Player', () => {
     player.clearWaitingFor();
 
     expect(() => player.process({type: 'option'})).to.throw('Not waiting for anything');
+  });
+
+  it('records when input was requested', () => {
+    const [/* game */, player] = testGame(1);
+    const clock = new FakeClock();
+    player.clock = clock;
+    player.clearWaitingFor();
+
+    clock.millis = 5000;
+    player.setWaitingFor(new SelectOption('Input'));
+    expect(player.inputRequestedAt).eq(5000);
+  });
+
+  it('keeps the request id when a response is rejected', () => {
+    const [/* game */, player] = testGame(1);
+    player.clearWaitingFor();
+    player.setWaitingFor(new SelectOption('Input'));
+    const requestId = player.requestId;
+
+    expect(() => player.process({type: 'amount', amount: 1})).to.throw(/Not a valid SelectOptionResponse/);
+    expect(player.requestId).eq(requestId);
+
+    player.process({type: 'option'});
+    expect(player.requestId).is.undefined;
   });
 
   it('does not stop the timer when processing optional input', () => {
@@ -254,7 +278,7 @@ describe('Player', () => {
       cardsInHand: [CardName.EARTH_ELEVATOR, CardName.DUST_SEALS],
       preludeCardsInHand: [CardName.METAL_RICH_ASTEROID, CardName.PSYCHROPHILES],
       ceoCardsInHand: [],
-      playedCards: [], // TODO(kberg): these are SerializedCard.
+      playedCards: [],
       draftedCards: [CardName.FISH, CardName.EXTREME_COLD_FUNGUS],
       needsToDraft: false,
       cardCost: 3,
@@ -423,7 +447,8 @@ describe('Player', () => {
     expect(card.resourceCount).eq(5);
     expect(log).has.length(1);
     expect(log[0].data[1].value).eq('1');
-    expect(log[0].data[3].value).eq('Pets');
+    expect(log[0].data[2].value).eq('Animal');
+    expect(log[0].data[4].value).eq('Pets');
 
     log.length = 0;
     player.removeResourceFrom(card, 1);
@@ -664,7 +689,7 @@ describe('Player', () => {
   describe('Convert Heat / Kelvinists kp03 swap', () => {
     function findOption(player: TestPlayer, title: string): SelectOption | undefined {
       const actions = cast(player.getActions(), OrOptions);
-      const option = actions.options.find((o) => o.title === title);
+      const option = actions.options.find((o) => formatMessage(o.title) === title);
       return option === undefined ? undefined : cast(option, SelectOption);
     }
 

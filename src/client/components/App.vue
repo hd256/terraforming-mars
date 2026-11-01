@@ -3,7 +3,7 @@
     <section>
       <dialog id="alert-dialog" class="alert-dialog">
         <form method="dialog">
-          <p id="alert-title" class="title" v-i18n>Error with input</p>
+          <p id="alert-dialog-title" class="title" v-i18n>Error with input</p>
           <p id="alert-dialog-message"></p>
           <menu class="dialog-menu centered-content">
             <button id="alert-dialog-button" class="btn btn-lg btn-primary">OK</button>
@@ -12,11 +12,11 @@
       </dialog>
     </section>
     <div class="main-container">
-      <StartScreen v-if="screen === 'start-screen'"/>
+      <StartScreen v-if="screen === 'start-screen'" />
       <CreateGameForm
         v-else-if="screen === 'create-game-form'"
       />
-      <LoadGameForm v-else-if="screen === 'load'"/>
+      <LoadGameForm v-else-if="screen === 'load'" />
       <GameHome
         v-else-if="screen === 'game-home' && game !== undefined"
         :game="game"
@@ -24,25 +24,22 @@
       <PlayerHome
         v-else-if="screen === 'player-home' && playerView !== undefined"
         :player-view="playerView"
-        :key="playerkey"
       />
       <SpectatorHome
         v-else-if="screen === 'spectator-home' && spectator !== undefined"
         :spectator="spectator"
-        :key="'spectator-' + playerkey"
       />
       <GameEnd
-        v-else-if="screen === 'the-end'"
-        :player-view="playerView"
-        :spectator="spectator"
+        v-else-if="screen === 'the-end' && participant !== undefined"
+        :participant="participant"
       />
       <GamesOverview
         v-else-if="screen === 'games-overview'"
       />
-      <CardList v-else-if="screen === 'cards'"/>
-      <AdminHome v-else-if="screen === 'admin'"/>
-      <LoginHome v-else-if="screen === 'login-home'"/>
-      <Help v-else-if="screen === 'help'"/>
+      <CardList v-else-if="screen === 'cards'" />
+      <AdminHome v-else-if="screen === 'admin'" />
+      <LoginHome v-else-if="screen === 'login-home'" />
+      <Help v-else-if="screen === 'help'" />
     </div>
     <div class="notice" v-i18n>
       Not affiliated with FryxGames, Asmodee Digital or Steam in any way.
@@ -100,10 +97,6 @@ export type MainAppData = {
      */
     spectator?: SpectatorModel;
     playerView?: PlayerViewModel;
-    // playerKey might seem to serve no function, but it's basically an arbitrary value used
-    // to force a rerender / refresh.
-    // See https://michaelnthiessen.com/force-re-render/
-    playerkey: number;
     isServerSideRequestInProgress: boolean;
     componentsVisibility: {[x: string]: boolean};
     game: SimpleGameModel | undefined;
@@ -122,7 +115,6 @@ export default defineComponent({
   data(): MainAppData {
     return {
       screen: 'empty',
-      playerkey: 0,
       isServerSideRequestInProgress: false,
       componentsVisibility: {
         'milestones': true,
@@ -155,6 +147,11 @@ export default defineComponent({
     AdminHome,
     LoginHome,
   },
+  computed: {
+    participant(): ViewModel | undefined {
+      return this.playerView ?? this.spectator;
+    },
+  },
   methods: {
     showAlert(title: string, message: string, cb: () => void = () => {}): void {
       const dialogElement: HTMLElement | null = document.getElementById('alert-dialog');
@@ -184,13 +181,18 @@ export default defineComponent({
     getVisibilityState(targetVar: string): boolean {
       return (this as unknown as MainAppData).componentsVisibility[targetVar] ? true : false;
     },
-    update(path: typeof paths.PLAYER | typeof paths.SPECTATOR): void {
+    /**
+     * Fetches and shows the latest player or spectator view.
+     *
+     * Resolves to false when the fetch fails.
+     */
+    update(path: typeof paths.PLAYER | typeof paths.SPECTATOR): Promise<boolean> {
       const currentPathname = getLastPathSegment();
       const app = this as unknown as MainAppData;
 
       const url = 'api/' + path + window.location.search.replace('&noredirect', '');
 
-      fetch(url)
+      return fetch(url)
         .then((resp) => {
           if (!resp.ok) {
             throw new Error(`Error getting game data: ${resp.statusText}`);
@@ -204,7 +206,6 @@ export default defineComponent({
           } else if (path === paths.SPECTATOR) {
             app.spectator = model as SpectatorModel;
           }
-          app.playerkey++;
           if (
             model.game.phase === 'end' &&
               window.location.search.includes('&noredirect') === false
@@ -231,17 +232,19 @@ export default defineComponent({
               );
             }
           }
+          return true;
         })
         .catch((err) => {
           alert('Error getting game data');
           console.error(err);
+          return false;
         });
     },
-    updatePlayer() {
-      this.update(paths.PLAYER);
+    updatePlayer(): Promise<boolean> {
+      return this.update(paths.PLAYER);
     },
-    updateSpectator() {
-      this.update(paths.SPECTATOR);
+    updateSpectator(): Promise<boolean> {
+      return this.update(paths.SPECTATOR);
     },
   },
   mounted() {
@@ -303,6 +306,14 @@ export default defineComponent({
       app.screen = 'login-home';
     } else {
       app.screen = 'start-screen';
+    }
+  },
+  errorCaptured(err: unknown) {
+    // Chunk errors occur when the server is redeployed with new chunk names
+    // and the client doesn't know about them. In that case, reload the page.
+    if (err instanceof Error && err.name === 'ChunkLoadError') {
+      console.error(err);
+      this.showAlert('Page out of date', 'This page is out of date. Click OK to refresh it.', () => setTimeout(() => window.location.reload(), 100));
     }
   },
 });

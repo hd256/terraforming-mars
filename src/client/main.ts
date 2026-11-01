@@ -1,6 +1,5 @@
 import {createApp, defineAsyncComponent} from 'vue';
 
-import {trimEmptyTextNodes} from '@/client/directives/TrimWhitespace';
 import App from '@/client/components/App.vue';
 import {getPreferences} from '@/client/utils/PreferencesManager';
 
@@ -20,7 +19,6 @@ async function bootstrap() {
   if (lang !== 'en') {
     try {
       window._translations = await fetch(`assets/locales/${lang}.json`).then((res) => res.json());
-      // TODO - add a nice loader for this fetch
     } catch (err) {
       console.warn(`Cannot load ${lang} translations. See network for details.`);
     }
@@ -31,11 +29,6 @@ async function bootstrap() {
   app.use(i18nPlugin);
 
   app.component('PlayerInputFactory', PlayerInputFactory);
-
-  app.directive('trim-whitespace', {
-    mounted: trimEmptyTextNodes,
-    updated: trimEmptyTextNodes,
-  });
 
   if (window.isSecureContext && 'serviceWorker' in navigator) {
     window.addEventListener('load', function() {

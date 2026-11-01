@@ -148,22 +148,36 @@ h2 {
 
 // normal backgrounds
 each(@players, {
-@c: ~"player_@{value}";
-.player_bg_color_@{value} {
-  background-color: @@c;
-}
+  @c: ~"player_@{value}";
+  .player_bg_color_@{value} {
+    background-color: @@c;
+  }
 })
+
+// light text is unreadable on the clear background
+.player_bg_color_clear {
+  color: @grey_900;
+}
 
 // backgrounds with opacity
 each(@players, {
-@c: ~"player_@{value}";
-.player_translucent_bg_color_@{value} {
-  background: rgba(@@c, 0.7);
-}
+  @c: ~"player_@{value}";
+  .player_translucent_bg_color_@{value} {
+    background: rgba(@@c, 0.7);
+  }
 })
+
+.player_translucent_bg_color_clear {
+  background: rgba(@player_clear, 0.6);
+}
 
 .alert-dialog {
   position: fixed;
+
+  a:link,
+  a:visited {
+    color: #0645ad;
+  }
 }
 
 .general-warning {
@@ -198,8 +212,10 @@ each(@players, {
 @import "./ares.less";
 @import "./games-overview.less";
 @import "./help.less";
+@import "./markdown.less";
 @import "./card_list.less";
 @import "./moon.less";
 @import "./pathfinders.less";
 @import "./language_icon.less";
 @import "./underworld.less";
+@import "./debug.less";

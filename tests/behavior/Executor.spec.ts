@@ -111,9 +111,17 @@ describe('Executor', () => {
 
   it('titaniumValue', () => {
     expect(player.payingAmount(Payment.of({titanium: 4}), {titanium: true})).eq(12);
-    executor.execute({titanumValue: 1}, player, fake);
+    executor.execute({titaniumValue: 1}, player, fake);
     expect(player.payingAmount(Payment.of({titanium: 4}), {titanium: true})).eq(16);
-    executor.onDiscard({titanumValue: 1}, player, fake);
+    executor.onDiscard({titaniumValue: 1}, player, fake);
+    expect(player.payingAmount(Payment.of({titanium: 4}), {titanium: true})).eq(12);
+  });
+
+  it('titaniumValue, negative', () => {
+    expect(player.payingAmount(Payment.of({titanium: 4}), {titanium: true})).eq(12);
+    executor.execute({titaniumValue: -1}, player, fake);
+    expect(player.payingAmount(Payment.of({titanium: 4}), {titanium: true})).eq(8);
+    executor.onDiscard({titaniumValue: -1}, player, fake);
     expect(player.payingAmount(Payment.of({titanium: 4}), {titanium: true})).eq(12);
   });
 
@@ -631,6 +639,17 @@ describe('Executor', () => {
     expect(player.steel).eq(0);
   });
 
+  it('spend - steel, raise TR, reds in power', () => {
+    const behavior: Behavior = {spend: {steel: 1}, tr: 1};
+    setRulingParty(game, PartyName.REDS);
+    player.steel = 1;
+    player.megaCredits = 2;
+    expect(executor.canExecute(behavior, player, fake)).is.false;
+
+    player.megaCredits = 3;
+    expect(executor.canExecute(behavior, player, fake)).is.true;
+  });
+
   it('spend - titanium', () => {
     const behavior = {spend: {titanium: 1}};
     expect(executor.canExecute(behavior, player, fake)).is.false;
@@ -640,6 +659,17 @@ describe('Executor', () => {
     expect(player.titanium).eq(0);
   });
 
+  it('spend - titanium, raise TR, reds in power', () => {
+    const behavior: Behavior = {spend: {titanium: 1}, tr: 1};
+    setRulingParty(game, PartyName.REDS);
+    player.titanium = 1;
+    player.megaCredits = 2;
+    expect(executor.canExecute(behavior, player, fake)).is.false;
+
+    player.megaCredits = 3;
+    expect(executor.canExecute(behavior, player, fake)).is.true;
+  });
+
   it('spend - plants', () => {
     const behavior = {spend: {plants: 1}};
     expect(executor.canExecute(behavior, player, fake)).is.false;
@@ -647,6 +677,17 @@ describe('Executor', () => {
     expect(executor.canExecute(behavior, player, fake)).is.true;
     executor.execute(behavior, player, fake);
     expect(player.plants).eq(0);
+  });
+
+  it('spend - plants, raise TR, reds in power', () => {
+    const behavior: Behavior = {spend: {plants: 1}, tr: 1};
+    setRulingParty(game, PartyName.REDS);
+    player.plants = 1;
+    player.megaCredits = 2;
+    expect(executor.canExecute(behavior, player, fake)).is.false;
+
+    player.megaCredits = 3;
+    expect(executor.canExecute(behavior, player, fake)).is.true;
   });
 
   it('spend - energy', () => {
@@ -858,6 +899,17 @@ describe('Executor', () => {
   });
 
 
+  it('spend - cards, raise TR, reds in power', () => {
+    const behavior: Behavior = {spend: {cards: 1}, tr: 1};
+    setRulingParty(game, PartyName.REDS);
+    player.cardsInHand.push(new MicroMills());
+    player.megaCredits = 2;
+    expect(executor.canExecute(behavior, player, fake)).is.false;
+
+    player.megaCredits = 3;
+    expect(executor.canExecute(behavior, player, fake)).is.true;
+  });
+
   it('spend - cards', () => {
     const behavior = {spend: {cards: 2}};
     player.cardsInHand.push(fake);
@@ -1044,6 +1096,30 @@ describe('Executor', () => {
     expect(player.underworldData.corruption).eq(1);
   });
 
+  it('spend - corruption, raise TR, reds in power', () => {
+    const behavior: Behavior = {spend: {corruption: 1}, tr: 1};
+    setRulingParty(game, PartyName.REDS);
+    player.underworldData.corruption = 1;
+    player.megaCredits = 2;
+    expect(executor.canExecute(behavior, player, fake)).is.false;
+
+    player.megaCredits = 3;
+    expect(executor.canExecute(behavior, player, fake)).is.true;
+  });
+
+  it('spend - resource from any card, raise TR, reds in power', () => {
+    const behavior: Behavior = {spend: {resourceFromAnyCard: {type: CardResource.MICROBE}}, tr: 1};
+    setRulingParty(game, PartyName.REDS);
+    const tardigrades = new Tardigrades();
+    tardigrades.resourceCount = 1;
+    player.playedCards.push(tardigrades);
+    player.megaCredits = 2;
+    expect(executor.canExecute(behavior, player, fake)).is.false;
+
+    player.megaCredits = 3;
+    expect(executor.canExecute(behavior, player, fake)).is.true;
+  });
+
   it('lose stock', () => {
     player.stock.override({megacredits: 10, steel: 4});
 
@@ -1107,7 +1183,7 @@ describe('Executor', () => {
     // 8 was asked for but only 2 was there, and the energy production line is absent
     // entirely because nothing changed.
     expect(game.gameLog.map(formatMessage)).deep.eq([
-      'blue lost 2 M€ because of Asteroid Mining',
+      'blue lost 2:r:mc: because of Asteroid Mining',
     ]);
   });
 
@@ -1118,8 +1194,8 @@ describe('Executor', () => {
     executor.execute({stock: {steel: 2}, production: {megacredits: 1}}, player, globalEvent);
 
     expect(game.gameLog.map(formatMessage)).deep.eq([
-      'blue gained 1 M€ production because of Asteroid Mining',
-      'blue gained 2 steel because of Asteroid Mining',
+      'blue gained 1:p:mc: because of Asteroid Mining',
+      'blue gained 2:r:steel: because of Asteroid Mining',
     ]);
   });
 
@@ -1128,8 +1204,8 @@ describe('Executor', () => {
     executor.execute({stock: {steel: 2}, production: {megacredits: 1}}, player, fake);
 
     expect(game.gameLog.map(formatMessage)).deep.eq([
-      'blue gained 1 M€ production',
-      'blue gained 2 steel',
+      'blue gained 1:p:mc:',
+      'blue gained 2:r:steel:',
     ]);
   });
 

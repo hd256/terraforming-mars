@@ -1,23 +1,24 @@
 <template>
   <div>
-  <template v-if="waitingfor === undefined || waitingfor.optional">
-    <template v-if="waitingfor === undefined">
-      {{ $t('Not your turn to take any actions') }}
+    <template v-if="waitingfor === undefined || waitingfor.optional">
+      <template v-if="waitingfor === undefined">
+        {{ $t('Not your turn to take any actions') }}
+      </template>
+      <template v-else>
+        {{ $t('Waiting for other players') }}
+      </template>
+      <template v-if="playersWaitingFor.length > 0">
+        (⌛ <span v-for="color in playersWaitingFor" class="log-player" :class="playerColorClass(color, 'bg')" :key="color">{{ getPlayerName(color) }}</span>)
+      </template>
     </template>
-    <template v-else>
-      {{ $t('Waiting for other players') }}
-    </template>
-    <template v-if="playersWaitingFor.length > 0">
-      (⌛ <span v-for="color in playersWaitingFor" class="log-player" :class="playerColorClass(color, 'bg')" :key="color">{{ getPlayerName(color) }}</span>)
-    </template>
-  </template>
-  <div v-if="waitingfor !== undefined" class="wf-root">
-    <PlayerInputFactory :players="playerView.players"
-                          :playerView="playerView"
-                          :playerinput="waitingfor"
-                          :onsave="onsave"
-                          :showsave="true"
-                          :showtitle="true" />
+    <div v-if="waitingfor !== undefined" class="wf-root">
+      <PlayerInputFactory :players="playerView.players"
+        :playerView="playerView"
+        :playerinput="waitingfor"
+        :onsave="onsave"
+        :showsave="true"
+        :showtitle="true"
+        :key="inputKey" />
     </div>
   </div>
 </template>
@@ -40,14 +41,20 @@ import {paths} from '@/common/app/paths';
 import {statusCode} from '@/common/http/statusCode';
 import {isPlayerId} from '@/common/Types';
 import {InputResponse} from '@/common/inputs/InputResponse';
-import {INVALID_RUN_ID, AppErrorResponse} from '@/common/app/AppErrorId';
+import {INVALID_REQUEST_ID, INVALID_RUN_ID, AppErrorResponse} from '@/common/app/AppErrorId';
 import {Color} from '@/common/Color';
 import {gameDocumentTitle} from '../utils/documentTitle';
 import {setFaviconStatus, setFaviconTurnFrame} from '@/client/utils/favicon';
 
 let ui_update_timeout_id: number | undefined;
+let otherPlayersTimer: number | undefined;
 let documentTitleTimer: number | undefined;
 let animationFrame = 0;
+
+// How often to refresh other players' status during simultaneous phases.
+const OTHER_PLAYERS_INTERVAL = 3000;
+// Phases where every player makes a choice at the same time.
+const SIMULTANEOUS_PHASES: ReadonlyArray<Phase> = [Phase.INITIALDRAFTING, Phase.DRAFTING, Phase.RESEARCH];
 
 // The spinning ◑◒◐◓ symbol used to indicate it's your turn.
 const TURN_SEQUENCE = '◑◒◐◓';
@@ -60,7 +67,9 @@ function isDesktopBrowser(): boolean {
 }
 
 type DataModel = {
-  playersWaitingFor: Array<Color>
+  playersWaitingFor: Array<Color>,
+  /** Changes with every new player view, so the input starts fresh. */
+  inputKey: number,
 }
 
 const CANNOT_CONTACT_SERVER = 'Unable to reach the server. It may be restarting or down for maintenance.';
@@ -76,13 +85,48 @@ export default defineComponent({
       type: Object as () => PlayerInputModel | undefined,
       default: undefined,
     },
+    requestId: {
+      type: String as () => string | undefined,
+      default: undefined,
+    },
   },
   data(): DataModel {
     return {
       playersWaitingFor: [],
+      inputKey: 0,
     };
   },
+  watch: {
+    playerView() {
+      this.inputKey++;
+      this.stop();
+      this.start();
+    },
+  },
   methods: {
+    start() {
+      document.title = gameDocumentTitle(this.playerView.game);
+      if (getPreferences().experimental_ui) {
+        setFaviconStatus(this.waitingfor !== undefined ? 'turn' : 'idle');
+      }
+      window.clearInterval(documentTitleTimer);
+      if (this.waitingfor === undefined || this.waitingfor.optional) {
+        this.waitForUpdate();
+      } else if (this.playerView.players.length > 1 && SIMULTANEOUS_PHASES.includes(this.playerView.game.phase)) {
+        this.watchOtherPlayers();
+      }
+      if (this.playerView.players.length > 1 && this.waitingfor !== undefined && !this.waitingfor.optional) {
+        documentTitleTimer = window.setInterval(() => this.animateTitle(), 1000);
+      }
+    },
+    stop() {
+      window.clearTimeout(ui_update_timeout_id);
+      ui_update_timeout_id = undefined;
+      window.clearTimeout(otherPlayersTimer);
+      otherPlayersTimer = undefined;
+      window.clearInterval(documentTitleTimer);
+      documentTitleTimer = undefined;
+    },
     getPlayerName(color: Color): string {
       const player = this.playerView.players.find((p) => p.color === color);
       return player ? player.name : color;
@@ -111,7 +155,7 @@ export default defineComponent({
         {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({runId: this.playerView.runId, ...out}),
+          body: JSON.stringify({runId: this.playerView.runId, requestId: this.requestId, ...out}),
         });
     },
     reset() {
@@ -138,7 +182,7 @@ export default defineComponent({
           if (response.status === statusCode.badRequest) {
             const resp = await response.json() as AppErrorResponse;
             let cb = () => {};
-            if (resp.id === INVALID_RUN_ID) {
+            if (resp.id === INVALID_RUN_ID || resp.id === INVALID_REQUEST_ID) {
               cb = () => setTimeout(() => window.location.reload(), 100);
             }
             showAlert('Error with input', resp.message, cb);
@@ -157,9 +201,7 @@ export default defineComponent({
     },
     updatePlayerView(playerView: PlayerViewModel | undefined) {
       const root = vueRoot(this);
-      root.screen = 'empty';
       root.playerView = playerView;
-      root.playerkey++;
       root.screen = 'player-home';
       if (this.playerView.game.phase === 'end' && window.location.pathname !== paths.THE_END) {
         window.location = window.location as any as (string & Location);
@@ -175,22 +217,30 @@ export default defineComponent({
         xhr.onerror = function() {
           root.showAlert('Error fetching state', CANNOT_CONTACT_SERVER, () => vueApp.waitForUpdate());
         };
-        xhr.onload = () => {
+        xhr.onload = async () => {
           if (xhr.status === statusCode.ok) {
             const result = xhr.response as WaitingForModel;
             this.playersWaitingFor = result.waitingFor;
             if (result.result === 'GO') {
               // Will only apply to player, not spectator.
-              root.updatePlayer();
+              const updated = root.updatePlayer();
               this.notify();
+              // When the fetch works, root.playerView changes and the playerView watcher
+              // calls start(), which decides whether to keep polling. When it fails
+              // nothing changes, so poll again here.
+              if (!await updated) {
+                vueApp.waitForUpdate();
+              }
               // We don't need to wait anymore - it's our turn
               return;
             } else if (result.result === 'REFRESH') {
               // Something changed, let's refresh UI
               if (isPlayerId(this.playerView.id)) {
-                root.updatePlayer();
-              } else {
-                root.updateSpectator();
+                if (!await root.updatePlayer()) {
+                  vueApp.waitForUpdate();
+                }
+              } else if (!await root.updateSpectator()) {
+                vueApp.waitForUpdate();
               }
 
               return;
@@ -204,6 +254,37 @@ export default defineComponent({
         xhr.send();
       };
       ui_update_timeout_id = window.setTimeout(askForUpdate, raw_settings.waitingForTimeout);
+    },
+    /**
+     * While this player makes a simultaneous choice (e.g. drafting), keep the other
+     * players' status current without redrawing the choice in progress.
+     */
+    watchOtherPlayers() {
+      const playerView = this.playerView;
+      window.clearTimeout(otherPlayersTimer);
+      // Schedule the next poll only after this one finishes, so responses can't arrive out of order.
+      const timer = window.setTimeout(async () => {
+        try {
+          const response = await fetch(paths.API_PLAYER + window.location.search);
+          if (response.ok) {
+            const latest: PlayerViewModel = await response.json();
+            playerView.players = latest.players;
+          } else {
+            console.warn('Unable to update other players', response.status, response.statusText);
+            // Client errors (e.g. the game no longer exists) won't recover, so stop polling.
+            if (response.status < 500) {
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Unable to update other players', e);
+        }
+        // Stop if the component unmounted or another poll started while this one was in flight.
+        if (otherPlayersTimer === timer) {
+          this.watchOtherPlayers();
+        }
+      }, OTHER_PLAYERS_INTERVAL);
+      otherPlayersTimer = timer;
     },
     notify() {
       if (getPreferences().enable_sounds) {
@@ -241,24 +322,14 @@ export default defineComponent({
     },
   },
   mounted() {
-    document.title = gameDocumentTitle(this.playerView.game);
-    if (getPreferences().experimental_ui) {
-      setFaviconStatus(this.waitingfor !== undefined ? 'turn' : 'idle');
-    }
-    window.clearInterval(documentTitleTimer);
-    if (this.waitingfor === undefined || this.waitingfor.optional) {
-      this.waitForUpdate();
-    }
-    if (this.playerView.players.length > 1 && this.waitingfor !== undefined && !this.waitingfor.optional) {
-      documentTitleTimer = window.setInterval(() => this.animateTitle(), 1000);
-    }
+    this.start();
+  },
+  beforeUnmount() {
+    this.stop();
   },
   computed: {
     Phase(): typeof Phase {
       return Phase;
-    },
-    preferences(): typeof getPreferences {
-      return getPreferences;
     },
     playerColorClass(): typeof playerColorClass {
       return playerColorClass;

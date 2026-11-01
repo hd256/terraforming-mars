@@ -5,6 +5,7 @@ import {IPTracker} from '../../src/server/server/IPTracker';
 import {GameLoader} from '../../src/server/database/GameLoader';
 import {FakeClock} from '../common/FakeClock';
 import {ISessionManager} from '../../src/server/server/auth/SessionManager';
+import {UrlParams} from '@/server/routes/UrlParams';
 
 describe('QuotaHandler', () => {
   let ctx: Context;
@@ -12,8 +13,9 @@ describe('QuotaHandler', () => {
 
   beforeEach(() => {
     fakeClock = new FakeClock;
+    const url = new URL('http://boo.com');
     ctx = {
-      url: new URL('http://boo.com'),
+      url: url,
       ip: '123.45.678.90',
       ipTracker: {} as IPTracker,
       gameLoader: {} as GameLoader,
@@ -23,25 +25,29 @@ describe('QuotaHandler', () => {
         statsId: '2',
       },
       clock: fakeClock,
+      urlParams: new UrlParams(url.searchParams),
     };
   });
 
   it('sanity', () => {
     const quotaHandler = new QuotaHandler({limit: 5, perMs: 120_000});
-    expect(quotaHandler.measure(ctx)).is.true;
+    for (let i = 0; i < 5; i++) {
+      expect(quotaHandler.isWithinQuota(ctx)).is.true;
+      quotaHandler.record(ctx);
+      fakeClock.millis += 100;
+    }
+    expect(quotaHandler.isWithinQuota(ctx)).is.false;
     fakeClock.millis += 100;
-    expect(quotaHandler.measure(ctx)).is.true;
-    fakeClock.millis += 100;
-    expect(quotaHandler.measure(ctx)).is.true;
-    fakeClock.millis += 100;
-    expect(quotaHandler.measure(ctx)).is.true;
-    fakeClock.millis += 100;
-    expect(quotaHandler.measure(ctx)).is.true;
-    fakeClock.millis += 100;
-    expect(quotaHandler.measure(ctx)).is.false;
-    fakeClock.millis += 100;
-    expect(quotaHandler.measure(ctx)).is.false;
+    expect(quotaHandler.isWithinQuota(ctx)).is.false;
     fakeClock.millis += 150_000;
-    expect(quotaHandler.measure(ctx)).is.true;
+    expect(quotaHandler.isWithinQuota(ctx)).is.true;
+  });
+
+  it('only recorded requests count against the quota', () => {
+    const quotaHandler = new QuotaHandler({limit: 1, perMs: 120_000});
+    expect(quotaHandler.isWithinQuota(ctx)).is.true;
+    expect(quotaHandler.isWithinQuota(ctx)).is.true;
+    quotaHandler.record(ctx);
+    expect(quotaHandler.isWithinQuota(ctx)).is.false;
   });
 });

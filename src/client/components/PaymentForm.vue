@@ -1,49 +1,49 @@
 <template>
-<section v-trim-whitespace>
-  <table class="payments_table">
-    <tbody>
-      <tr>
-        <td></td>
-        <td v-trim-whitespace><i class="resource_icon payments_type_smallicon resource_icon--megacredits"></i></td>
-      </tr>
-      <template v-for="unit of order" :key="unit">
-        <template v-if="ledger[unit]?.available > 0">
-          <tr>
-            <td>
-              <PaymentUnitComponent
-                v-model.number="payment[unit]"
-                :unit="unit"
-                :description="descriptions[unit]"
-                :rate="ledger[unit].rate"
-                @plus="addValue(unit)"
-                @minus="reduceValue(unit)"
-                @max="maxValue(unit)"/>
-              <div v-if="ledger[unit]?.reserved" class="card-warning" v-i18n="$t(unit)">
-              Some ${0} are reserved and unavailable here.</div>
-            </td>
-            <td class='payments_unit_subtotal' v-if="ledger[unit].rate !== undefined && payment[unit] !== 0" v-trim-whitespace>
-              {{ ledger[unit].rate * payment[unit] }}
-            </td>
-          </tr>
+  <section>
+    <table class="payments_table">
+      <tbody>
+        <tr>
+          <td></td>
+          <td><i class="resource_icon payments_type_smallicon resource_icon--megacredits"></i></td>
+        </tr>
+        <template v-for="unit in order" :key="unit">
+          <template v-if="ledger[unit]?.available > 0">
+            <tr>
+              <td>
+                <PaymentUnitComponent
+                  v-model:count.number="payment[unit]"
+                  :unit="unit"
+                  :description="descriptions[unit]"
+                  :rate="ledger[unit].rate"
+                  @plus="addValue(unit)"
+                  @minus="reduceValue(unit)"
+                  @max="maxValue(unit)" />
+                <div v-if="ledger[unit]?.reserved" class="card-warning" v-i18n="$t(unit)">
+                  Some ${0} are reserved and unavailable here.</div>
+              </td>
+              <td class="payments_unit_subtotal" v-if="ledger[unit].rate !== undefined && payment[unit] !== 0">
+                {{ ledger[unit].rate * payment[unit] }}
+              </td>
+            </tr>
+          </template>
         </template>
-      </template>
-    <tr :class="totalSpentClass()">
-      <td class="payments_total_heading"></td>
-      <td class="payments_total_value" :title="$t(totalSpentTitle())" :aria-label="$t(totalSpentTitle())" v-trim-whitespace>
-        {{ totalSpent() }}
-      </td>
-    </tr>
-    </tbody>
-  </table>
+        <tr :class="totalSpentClass">
+          <td class="payments_total_heading"></td>
+          <td class="payments_total_value" :title="$t(totalSpentTitle)" :aria-label="$t(totalSpentTitle)">
+            {{ totalSpent }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
-  <div v-if="warning !== undefined" class="tm-warning">
-    <label class="label label-error">{{ $t(warning) }}</label>
-  </div>
+    <div v-if="warning !== undefined" class="tm-warning">
+      <label class="label label-error">{{ $t(warning) }}</label>
+    </div>
 
-  <div v-if="showsave" class="payments_save">
-    <AppButton size="big" @click="handleSave()" :title="$t(buttonLabel)" data-test="save"/>
-  </div>
-</section>
+    <div v-if="showsave" class="payments_save">
+      <AppButton size="big" @click="handleSave()" :title="$t(buttonLabel)" data-test="save" />
+    </div>
+  </section>
 </template>
 
 <script lang="ts">
@@ -56,6 +56,8 @@ import PaymentUnitComponent from '@/client/components/PaymentUnit.vue';
 import {Ledger} from '@/client/components/PaymentLedger';
 import {computeDefaultPayment} from '@/client/components/PaymentDefaults';
 import {sum} from '@/common/utils/utils';
+import {Message} from '@/common/logs/Message';
+import {LogMessageDataType} from '@/common/logs/LogMessageDataType';
 
 const DESCRIPTIONS: Record<SpendableResource, string> = {
   steel: 'Steel',
@@ -73,9 +75,20 @@ const DESCRIPTIONS: Record<SpendableResource, string> = {
   plants: 'Plants',
 };
 
+function mapRecord<T extends string, U, V>(record: Record<T, U>, f: (value: U) => V): Record<T, V> {
+  const entries: Array<[T, U]> = Object.entries(record) as Array<[T, U]>;
+  const mapped: Array<[T, V]> = entries.map(([k, v]) => [k, f(v)]);
+  return Object.fromEntries(mapped) as Record<T, V>;
+}
+
+const IN_SENTENCE_DESCRIPTIONS: Record<SpendableResource, string> = {
+  ...mapRecord(DESCRIPTIONS, (v) => v.toLowerCase()),
+  megacredits: 'M€',
+};
+
 type DataModel = {
   payment: Payment;
-  warning: string | undefined;
+  warning: string | Message | undefined;
 };
 
 export default defineComponent({
@@ -119,6 +132,31 @@ export default defineComponent({
     descriptions(): Record<SpendableResource, string> {
       return DESCRIPTIONS;
     },
+    megaCreditsMax(): number {
+      return Math.min(this.ledger['megacredits'].available, this.cost);
+    },
+    totalSpent(): number {
+      return sum(this.order.map((unit) => this.payment[unit] * this.ledger[unit].rate));
+    },
+    totalSpentClass(): string {
+      const total = this.totalSpent;
+      if (total < this.cost) {
+        return 'payments_total_under';
+      } else if (total > this.cost) {
+        return 'payments_total_over';
+      } else {
+        return 'payments_total_exact';
+      }
+    },
+    totalSpentTitle(): string {
+      const total = this.totalSpent;
+      if (total < this.cost) {
+        return 'Underpaying';
+      } else if (total > this.cost) {
+        return 'Overpaying';
+      }
+      return '';
+    },
   },
   watch: {
     payment: {
@@ -133,13 +171,10 @@ export default defineComponent({
     /**
      * Returns the most MC necessary, capped by the cost of the payment.
      */
-    getMegaCreditsMax(): number {
-      return Math.min(this.ledger['megacredits'].available, this.cost);
-    },
     addValue(unit: SpendableResource): void {
       // MC is special-cased because it's the currency being spent.
       if (unit === 'megacredits') {
-        if (this.payment[unit] < this.getMegaCreditsMax()) {
+        if (this.payment[unit] < this.megaCreditsMax) {
           this.payment[unit] += 1;
         }
       } else {
@@ -159,7 +194,7 @@ export default defineComponent({
     },
     setRemainingMCValue(): void {
       // Amount of money non-megacredit resources account for.
-      const nonMCspend = this.totalSpent() - this.payment.megacredits;
+      const nonMCspend = this.totalSpent - this.payment.megacredits;
 
       // Amount MC has to make up for
       const remainingMC = Math.max(0, this.cost - nonMCspend);
@@ -183,9 +218,6 @@ export default defineComponent({
         }
       }
     },
-    totalSpent(): number {
-      return sum(this.order.map((unit) => this.payment[unit] * this.ledger[unit].rate));
-    },
     handleSave(): void {
       this.warning = undefined;
       if (this.cost === 0) {
@@ -194,12 +226,14 @@ export default defineComponent({
       }
       for (const unit of this.order) {
         if (this.payment[unit] > this.ledger[unit].available) {
-          // TODO(kberg): Make this a Message
-          this.warning = `You do not have enough ${unit}`;
+          this.warning = {
+            message: 'You do not have enough ${0}',
+            data: [{type: LogMessageDataType.STRING, value: IN_SENTENCE_DESCRIPTIONS[unit]}],
+          };
           return;
         }
       }
-      const delta = this.totalSpent() - this.cost;
+      const delta = this.totalSpent - this.cost;
       if (delta < 0) {
         this.warning = 'Haven\'t spent enough';
         return;
@@ -207,8 +241,10 @@ export default defineComponent({
       if (delta > 0) {
         for (const unit of this.order) {
           if (this.payment[unit] > 0 && delta >= this.ledger[unit].rate) {
-            // TODO(kberg): Make this a Message
-            this.warning = `You cannot overspend ${unit}`;
+            this.warning = {
+              message: 'You cannot overspend ${0}',
+              data: [{type: LogMessageDataType.STRING, value: IN_SENTENCE_DESCRIPTIONS[unit]}],
+            };
             return;
           }
         }
@@ -220,25 +256,6 @@ export default defineComponent({
         }
       }
       this.$emit('save', this.payment);
-    },
-    totalSpentClass(): string {
-      const total = this.totalSpent();
-      if (total < this.cost) {
-        return 'payments_total_under';
-      } else if (total > this.cost) {
-        return 'payments_total_over';
-      } else {
-        return 'payments_total_exact';
-      }
-    },
-    totalSpentTitle(): string {
-      const total = this.totalSpent();
-      if (total < this.cost) {
-        return 'Underpaying';
-      } else if (total > this.cost) {
-        return 'Overpaying';
-      }
-      return '';
     },
   },
 });

@@ -32,29 +32,13 @@ export class Deck<T extends Named<CardName>> {
     this.random = random;
   }
 
-  public shuffle(cardsOnTop: ReadonlyArray<CardName> = []) {
+  public shuffle() {
     const copy = [...this.drawPile, ...this.discardPile];
     this.drawPile.splice(0, this.drawPile.length);
     this.discardPile.splice(0, this.discardPile.length);
 
-    if (cardsOnTop.length === 0) {
-      Deck.shuffle(copy, this.random);
-      this.drawPile.push(...copy);
-    } else {
-      const set = new Set(cardsOnTop);
-      const top: Array<T> = [];
-      const rest: Array<T> = [];
-      copy.forEach((card) => {
-        if (set.has(card.name)) {
-          top.push(card);
-        } else {
-          rest.push(card);
-        }
-      });
-      inplaceShuffle(top, this.random);
-      inplaceShuffle(rest, this.random);
-      this.drawPile.push(...rest, ...top);
-    }
+    Deck.shuffle(copy, this.random);
+    this.drawPile.push(...copy);
   }
 
   public draw(logger: Logger, source: 'top' | 'bottom' = 'top'): T | undefined {
@@ -105,13 +89,6 @@ export class Deck<T extends Named<CardName>> {
       throw new Error(`Unexpected empty ${this.type} deck`);
     }
     return card;
-  }
-
-  /**
-   * @deprecated use drawByConditionOrThrow, or create a safer version of drawByCondition
-   */
-  public drawByConditionLegacy(logger: Logger, total: number, include: (card: T) => boolean) {
-    return this.drawByConditionOrThrow(logger, total, include);
   }
 
   public drawByConditionOrThrow(logger: Logger, total: number, include: (card: T) => boolean) {

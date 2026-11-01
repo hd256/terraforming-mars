@@ -1,38 +1,38 @@
 <template>
-<div class="payments_cont">
-  <div v-if="showtitle === true">{{ $t(playerinput.title) }}</div>
-  <label v-for="availableCard in cards" class="payments_cards" :key="availableCard.name">
-    <input v-if="!availableCard.isDisabled" class="hidden" type="radio" v-model="cardName" :value="availableCard.name" >
-    <Card class="cardbox" :card="availableCard" />
-  </label>
-  <template v-if="card !== undefined && card.additionalProjectCosts">
-    <div v-if="card.additionalProjectCosts.aeronGenomicsResources" class="card-warning"
-      v-i18n="[$t(card.name), card.additionalProjectCosts.aeronGenomicsResources, 'animals', $t(CardName.AERON_GENOMICS)]"
-    >
-      Playing ${0} consumes ${1} ${2} from ${3}
-    </div>
-    <div v-if="card.additionalProjectCosts.thinkTankResources" class="card-warning"
-      v-i18n="[$t(card.name), card.additionalProjectCosts.thinkTankResources, 'data', $t(CardName.THINK_TANK)]">
-      Playing ${0} consumes ${1} ${2} from ${3}
-    </div>
-    <div v-if="card.additionalProjectCosts.redsCost" class="card-warning" v-i18n="[$t(card.name), card.additionalProjectCosts.redsCost, $t('Reds')]">
-      Playing ${0} will cost ${1} M€ more because ${2} are in power
-    </div>
-  </template>
-  <WarningsComponent v-if="card !== undefined" :warnings="card.warnings"/>
+  <div class="payments_cont">
+    <div v-if="showtitle === true">{{ $t(playerinput.title) }}</div>
+    <label v-for="availableCard in cards" class="payments_cards" :key="availableCard.name">
+      <input v-if="!availableCard.isDisabled" class="hidden" type="radio" v-model="cardName" :value="availableCard.name">
+      <Card class="cardbox" :card="availableCard" />
+    </label>
+    <template v-if="card !== undefined && card.additionalProjectCosts">
+      <div v-if="card.additionalProjectCosts.aeronGenomicsResources" class="card-warning"
+        v-i18n="[$t(card.name), card.additionalProjectCosts.aeronGenomicsResources, 'animals', $t(CardName.AERON_GENOMICS)]"
+      >
+        Playing ${0} consumes ${1} ${2} from ${3}
+      </div>
+      <div v-if="card.additionalProjectCosts.thinkTankResources" class="card-warning"
+        v-i18n="[$t(card.name), card.additionalProjectCosts.thinkTankResources, 'data', $t(CardName.THINK_TANK)]">
+        Playing ${0} consumes ${1} ${2} from ${3}
+      </div>
+      <div v-if="card.additionalProjectCosts.redsCost" class="card-warning" v-i18n="[$t(card.name), card.additionalProjectCosts.redsCost, $t('Reds')]">
+        Playing ${0} will cost ${1} M€ more because ${2} are in power
+      </div>
+    </template>
+    <WarningsComponent v-if="card !== undefined" :warnings="card.warnings" />
 
-  <PaymentForm
-    v-if="showPaymentSection"
-    ref="paymentForm"
-    :key="cardName"
-    :cost="cost"
-    :order="order"
-    :ledger="ledger"
-    :showsave="showsave"
-    :buttonLabel="playerinput.buttonLabel"
-    @change="(p) => payment = p"
-    @save="doSave"/>
-</div>
+    <PaymentForm
+      v-if="showPaymentSection"
+      ref="paymentForm"
+      :key="cardName"
+      :cost="cost"
+      :order="order"
+      :ledger="ledger"
+      :showsave="showsave"
+      :buttonLabel="playerinput.buttonLabel"
+      @change="(p) => payment = p"
+      @save="doSave" />
+  </div>
 </template>
 
 <script lang="ts">
@@ -97,11 +97,21 @@ export default defineComponent({
     ledger(): Ledger {
       return this.buildLedger(this.order, this.reserveUnits);
     },
+    tags(): ReadonlyArray<Tag> {
+      return this.card !== undefined ? getCardOrThrow(this.card.name).tags : [];
+    },
+    reserveUnits(): Units {
+      return this.card?.reserveUnits ?? Units.EMPTY;
+    },
     CardName(): typeof CardName {
       return CardName;
     },
     showPaymentSection(): boolean {
       return this.card !== undefined && this.card.isDisabled !== true;
+    },
+    canUseTitaniumRegularly(): boolean {
+      return this.tags.includes(Tag.SPACE) ||
+          this.playerView.thisPlayer.lastCardPlayed === CardName.LAST_RESORT_INGENUITY;
     },
   },
   watch: {
@@ -111,11 +121,8 @@ export default defineComponent({
       if (newVal === undefined) {
         return;
       }
-      // TODO(kberg): this stuff is set in data(). Perhaps share the code?
       this.card = this.getCard();
       this.cost = this.card.calculatedCost ?? 0;
-      this.tags = this.getCardTags();
-      this.reserveUnits = this.card.reserveUnits ?? Units.EMPTY;
       this.updateAvailableUnits();
     },
   },
@@ -132,10 +139,8 @@ export default defineComponent({
     return {
       cardName: card?.name,
       card: card,
-      reserveUnits: card?.reserveUnits ?? Units.EMPTY,
       cards: cards,
       cost: card?.calculatedCost ?? 0,
-      tags: card !== undefined ? getCardOrThrow(card.name).tags : [],
       available: Units.of({}),
     };
   },
@@ -158,24 +163,12 @@ export default defineComponent({
       }
       return card;
     },
-    getCardTags() {
-      // By the time getCardTags is called, this.cardName is defined. This is an
-      // unnecessary guard.
-      if (this.cardName === undefined) {
-        return [];
-      }
-      return getCardOrThrow(this.cardName).tags;
-    },
     updateAvailableUnits() {
       const thisPlayer = this.playerView.thisPlayer;
       this.available.steel = Math.max(thisPlayer.steel - this.reserveUnits.steel, 0);
       this.available.titanium = Math.max(thisPlayer.titanium - this.reserveUnits.titanium, 0);
       this.available.heat = Math.max(this.availableHeat() - this.reserveUnits.heat, 0);
       this.available.plants = Math.max(thisPlayer.plants - this.reserveUnits.plants, 0);
-    },
-    canUseTitaniumRegularly(): boolean {
-      return this.tags.includes(Tag.SPACE) ||
-          this.playerView.thisPlayer.lastCardPlayed === CardName.LAST_RESORT_INGENUITY;
     },
     canUse(unit: SpendableResource): boolean {
       if (this.card === undefined) {
@@ -222,7 +215,7 @@ export default defineComponent({
           return this.tags.includes(Tag.BUILDING) ||
           this.playerView.thisPlayer.lastCardPlayed === CardName.LAST_RESORT_INGENUITY;
         case 'titanium':
-          return this.canUseTitaniumRegularly() ||
+          return this.canUseTitaniumRegularly ||
           this.playerinput.paymentOptions.lunaTradeFederationTitanium === true;
         case 'plants':
           return this.tags.includes(Tag.BUILDING) && this.playerinput.paymentOptions.plants === true;
@@ -249,7 +242,7 @@ export default defineComponent({
     /** @override */
     getTitaniumResourceRate(): number {
       const titaniumValue = this.playerView.thisPlayer.titaniumValue;
-      if (this.canUseTitaniumRegularly() || this.card?.standardProjectCanPayWith?.titanium === true) {
+      if (this.canUseTitaniumRegularly || this.card?.standardProjectCanPayWith?.titanium === true) {
         return titaniumValue;
       }
       return titaniumValue - 1;

@@ -7,16 +7,16 @@
           <tspan dy="15">Mare</tspan>
           <tspan x="12" dy="12">Imbrium</tspan>
         </text>
-        <line x1="24" y1="34" x2="33" y2="105" class="board-line"/>
+        <line x1="24" y1="34" x2="33" y2="105" class="board-line" />
         <text x="30" y="107" class="board-caption board_caption--black">●</text>
       </g>
 
-      <g id="mare_sereitatis" transform="translate(485, 140)">
+      <g id="mare_serenitatis" transform="translate(485, 140)">
         <text class="board-caption">
-            <tspan dy="15">Mare</tspan>
-            <tspan x="4" dy="12">Serenitatis</tspan>
+          <tspan dy="15">Mare</tspan>
+          <tspan x="4" dy="12">Serenitatis</tspan>
         </text>
-        <line x1="0" y1="25" x2="-120" y2="50" class="board-line"/>
+        <line x1="0" y1="25" x2="-120" y2="50" class="board-line" />
         <text x="-122" y="53" class="board-caption board_caption--black">●</text>
       </g>
 
@@ -26,7 +26,7 @@
           <tspan dy="15">Mare</tspan>
           <tspan x="-2" dy="12">Nubium</tspan>
         </text>
-        <line x1="29" y1="14" x2="115" y2="-64" class="board-line"/>
+        <line x1="29" y1="14" x2="115" y2="-64" class="board-line" />
         <text x="113" y="-62" class="board-caption board_caption--black">●</text>
       </g>
 
@@ -35,14 +35,14 @@
           <tspan dy="15">Mare</tspan>
           <tspan dy="12" x="48">Nectaris</tspan>
         </text>
-        <line x1="-39" y1="-12" x2="45" y2="15" class="board-line"/>
+        <line x1="-39" y1="-12" x2="45" y2="15" class="board-line" />
         <text x="-39" y="-9" class="board-caption board_caption--black">&#x25cf;</text>
       </g>
     </svg>
 
     <div id="moon_board_outer_spaces" class="board-outer-spaces">
-      <MoonSpace :space="getSpaceById('m01')" text="Luna Trade Station"/>
-      <MoonSpace :space="getSpaceById('m37')" text="Momentum Virium Habitat"/>
+      <MoonSpace :space="getSpaceById('m01')" text="Luna Trade Station" />
+      <MoonSpace :space="getSpaceById('m37')" text="Momentum Virium Habitat" />
     </div>
 
     <div class="global-numbers">
@@ -62,7 +62,7 @@
 
     <div class="board" id="moon_board">
       <MoonSpace
-        v-for="space in getAllNonColonySpaces()"
+        v-for="space in allNonColonySpaces"
         :key="space.id"
         :space="space"
         :tileView="tileView"
@@ -82,6 +82,7 @@ import MoonSpace from '@/client/components/moon/MoonSpace.vue';
 import {TileView} from '../board/TileView';
 import {SpaceId} from '@/common/Types';
 import {comparing} from '@/common/utils/Ordering';
+import {spacesById} from '@/client/utils/spacesById';
 
 type MoonParamLevel = {
   value: number,
@@ -104,17 +105,18 @@ export default defineComponent({
   components: {
     MoonSpace,
   },
-  methods: {
-    getAllNonColonySpaces(): Array<SpaceModel> {
+  computed: {
+    allNonColonySpaces(): Array<SpaceModel> {
       return this.model.spaces
         .filter((space) => space.spaceType !== SpaceType.COLONY)
         .toSorted(comparing((space) => parseInt(space.id)));
     },
+  },
+  methods: {
     getSpaceById(spaceId: SpaceId) {
-      for (const space of this.model.spaces) {
-        if (space.id === spaceId) {
-          return space;
-        }
+      const space = spacesById(this.model.spaces).get(spaceId);
+      if (space !== undefined) {
+        return space;
       }
       throw new Error('Board space not found by id \'' + spaceId + '\'');
     },

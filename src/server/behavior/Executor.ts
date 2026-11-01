@@ -34,7 +34,7 @@ import {UnderworldExpansion} from '../underworld/UnderworldExpansion';
 import {SelectResource} from '../inputs/SelectResource';
 import {RemoveResourcesFromCard} from '../deferredActions/RemoveResourcesFromCard';
 import {isIProjectCard} from '../cards/IProjectCard';
-import {MAXIMUM_HABITAT_RATE, MAXIMUM_LOGISTIC_RATE, MAXIMUM_MINING_RATE, MAX_OCEAN_TILES, MAX_OXYGEN_LEVEL, MAX_TEMPERATURE, MAX_VENUS_SCALE} from '../../common/constants';
+import {MAXIMUM_HABITAT_RATE, MAXIMUM_LOGISTIC_RATE, MAXIMUM_MINING_RATE, PRODUCTION_MINIMUMS} from '../../common/constants';
 import {CardName} from '../../common/cards/CardName';
 import {inplaceRemove} from '../../common/utils/utils';
 import {SelectCard} from '../inputs/SelectCard';
@@ -49,11 +49,10 @@ import {AddResourcesToAnyCardExecutor} from './AddResourcesToAnyCardExecutor';
  * went negative takes nothing instead of granting a gain, and never more than the player
  * can give up, so `add` logs the amount that really changed.
  */
-function loseable(units: Units, stock: BaseStock, minMegacredits: number): Units {
+function loseable(units: Units, stock: BaseStock, minimums: Units): Units {
   const capped = {...Units.EMPTY};
   for (const key of Units.keys) {
-    const floor = key === 'megacredits' ? minMegacredits : 0;
-    capped[key] = Math.max(0, Math.min(units[key], stock[key] - floor));
+    capped[key] = Math.max(0, Math.min(units[key], stock[key] - minimums[key]));
   }
   return capped;
 }
@@ -87,22 +86,22 @@ export class Executor implements BehaviorExecutor {
 
     if (behavior.global !== undefined) {
       const g = behavior.global;
-      if (g.temperature !== undefined && game.getTemperature() >= MAX_TEMPERATURE) {
+      if (g.temperature !== undefined && game.getTemperature() >= game.max.temperature) {
         card.addWarning('maxtemp');
       }
-      if (g.oxygen !== undefined && game.getOxygenLevel() >= MAX_OXYGEN_LEVEL) {
+      if (g.oxygen !== undefined && game.getOxygenLevel() >= game.max.oxygen) {
         if (g.oxygen < 0) {
           card.addWarning('maxoxygen-reduce');
         } else {
           card.addWarning('maxoxygen');
         }
       }
-      if (g.venus !== undefined && game.getVenusScaleLevel() >= MAX_VENUS_SCALE) {
+      if (g.venus !== undefined && game.getVenusScaleLevel() >= game.max.venus) {
         card.addWarning('maxvenus');
       }
     }
 
-    if (behavior.ocean !== undefined && game.board.getOceanSpaces().length >= MAX_OCEAN_TILES) {
+    if (behavior.ocean !== undefined && game.board.getOceanSpaces().length >= game.max.oceans) {
       card.addWarning('maxoceans');
     }
 
@@ -133,34 +132,19 @@ export class Executor implements BehaviorExecutor {
       })) {
         return false;
       }
-      if (spend.steel && player.steel < spend.steel) {
-        return false;
-      }
-      if (spend.titanium && player.titanium < spend.titanium) {
-        return false;
-      }
-      if (spend.plants && player.plants < spend.plants) {
-        return false;
-      }
-      if (spend.energy) {
-        if (player.energy < spend.energy) {
+
+      for (const unit of ['steel', 'titanium', 'plants', 'heat', 'energy'] as const) {
+        const required = spend[unit];
+        if (!required) {
+          continue;
+        }
+        const available = unit === 'heat' ? player.availableHeat() : player[unit];
+        if (available < required) {
           return false;
         }
         if (!player.canAfford({
           cost: 0,
-          reserveUnits: Units.of({energy: spend.energy}),
-          tr: asTrSource,
-        })) {
-          return false;
-        }
-      }
-      if (spend.heat) {
-        if (player.availableHeat() < spend.heat) {
-          return false;
-        }
-        if (!player.canAfford({
-          cost: 0,
-          reserveUnits: Units.of({heat: spend.heat}),
+          reserveUnits: Units.of({[unit]: required}),
           tr: asTrSource,
         })) {
           return false;
@@ -174,14 +158,27 @@ export class Executor implements BehaviorExecutor {
           return false;
         }
       }
-      if (spend.resourceFromAnyCard && player.getCardsWithResources(spend.resourceFromAnyCard.type).length === 0) {
-        return false;
+      if (spend.resourceFromAnyCard) {
+        if (player.getCardsWithResources(spend.resourceFromAnyCard.type).length === 0) {
+          return false;
+        }
+        if (!player.canAfford({cost: 0, tr: asTrSource})) {
+          return false;
+        }
       }
-      if (spend.corruption && player.underworldData.corruption < spend.corruption) {
-        return false;
+      if (spend.corruption) {
+        if (player.underworldData.corruption < spend.corruption) {
+          return false;
+        }
+        if (!player.canAfford({cost: 0, tr: asTrSource})) {
+          return false;
+        }
       }
       if (spend.cards) {
         if (player.cardsInHand.filter((c) => card !== c).length < spend.cards) {
+          return false;
+        }
+        if (!player.canAfford({cost: 0, tr: asTrSource})) {
           return false;
         }
       }
@@ -257,7 +254,7 @@ export class Executor implements BehaviorExecutor {
       const turmoil = Turmoil.getTurmoil(game);
       if (behavior.turmoil.sendDelegates) {
         const count = ctx.count(behavior.turmoil.sendDelegates.count);
-        if (turmoil.getAvailableDelegateCount(player) < count) {
+        if (turmoil.delegateReserve.get(player) < count) {
           return false;
         }
       }
@@ -431,7 +428,7 @@ export class Executor implements BehaviorExecutor {
       delete remainder['removeResourcesFromAnyCard'];
       const source = r.source ?? 'self';
       const count = ctx.count(r.count ?? 1);
-      player.game.defer(new RemoveResourcesFromCard(player, r.type, count, {source, blockable: source !== 'self', log: true, min: count}))
+      player.game.defer(new RemoveResourcesFromCard(player, r.type, count, {source, blockable: source !== 'self', min: count}))
         .andThen((response) => {
           if (response.proceed) {
             this.execute(remainder, player, inputCard);
@@ -444,12 +441,11 @@ export class Executor implements BehaviorExecutor {
     if (behavior.lose !== undefined) {
       const lose = behavior.lose;
       if (lose.production) {
-        // Production megacredits bottom out at -5, not 0.
-        const units = loseable(ctx.countUnits(lose.production), player.production, -5);
+        const units = loseable(ctx.countUnits(lose.production), player.production, PRODUCTION_MINIMUMS);
         player.production.adjust(Units.negative(units), {log: true, from});
       }
       if (lose.stock) {
-        const units = loseable(ctx.countUnits(lose.stock), player.stock, 0);
+        const units = loseable(ctx.countUnits(lose.stock), player.stock, Units.EMPTY);
         player.stock.adjust(Units.negative(units), {log: true, from});
       }
     }
@@ -484,8 +480,11 @@ export class Executor implements BehaviorExecutor {
     if (behavior.steelValue === 1) {
       player.increaseSteelValue();
     }
-    if (behavior.titanumValue === 1) {
+    if (behavior.titaniumValue === 1) {
       player.increaseTitaniumValue();
+    }
+    if (behavior.titaniumValue === -1) {
+      player.decreaseTitaniumValue();
     }
 
     if (behavior?.greeneryDiscount) {
@@ -729,8 +728,11 @@ export class Executor implements BehaviorExecutor {
     if (behavior.steelValue === 1) {
       player.decreaseSteelValue();
     }
-    if (behavior.titanumValue === 1) {
+    if (behavior.titaniumValue === 1) {
       player.decreaseTitaniumValue();
+    }
+    if (behavior.titaniumValue === -1) {
+      player.increaseTitaniumValue();
     }
 
     if (behavior?.greeneryDiscount) {
@@ -763,17 +765,25 @@ export class Executor implements BehaviorExecutor {
       }
     }
 
-    // TODO(kberg): Use undefined instead of 0.
+    // Counts the steps from `rate` plus one for `tile`, or undefined when there are none.
+    const steps = (rate: number | undefined, tile: unknown): number | undefined => {
+      let total = rate ?? 0;
+      if (tile !== undefined) {
+        total++;
+      }
+      return total === 0 ? undefined : total;
+    };
+
     const trSource: TRSource = {
       tr: tr,
       temperature: behavior.global?.temperature,
-      oxygen: (behavior.global?.oxygen ?? 0) + (behavior.greenery !== undefined ? 1 : 0),
+      oxygen: steps(behavior.global?.oxygen, behavior.greenery),
       venus: behavior.global?.venus,
       oceans: behavior.ocean !== undefined ? (behavior.ocean.count ?? 1) : undefined,
 
-      moonHabitat: (behavior.moon?.habitatRate ?? 0) + (behavior.moon?.habitatTile !== undefined ? 1 : 0),
-      moonMining: (behavior.moon?.miningRate ?? 0) + (behavior.moon?.mineTile !== undefined ? 1 : 0),
-      moonLogistic: (behavior.moon?.logisticRate ?? 0) + (behavior.moon?.roadTile !== undefined ? 1 : 0),
+      moonHabitat: steps(behavior.moon?.habitatRate, behavior.moon?.habitatTile),
+      moonMining: steps(behavior.moon?.miningRate, behavior.moon?.mineTile),
+      moonLogistic: steps(behavior.moon?.logisticRate, behavior.moon?.roadTile),
     };
     return trSource;
   }

@@ -1,5 +1,5 @@
 <template>
-  <div class="awards_cont" v-trim-whitespace>
+  <div class="awards_cont">
     <div class="awards">
       <div class="ma-title">
         <a @click.prevent="toggleList" class="ma-clickable awards-padding" href="#" data-test="toggle-awards" v-i18n>Awards</a>
@@ -20,14 +20,12 @@
           </span>
         </span>
 
-        <span v-if="isLearnerModeOn">
-          <span
-            v-for="spotPrice in availableAwardSpots"
-            :key="spotPrice"
-            class="milestone-award-inline unpaid"
-          >
-            <div class="milestone-award-price" data-test="spot-price" v-text="spotPrice" ></div>
-          </span>
+        <span
+          v-for="spotPrice in availableAwardSpots"
+          :key="spotPrice"
+          class="milestone-award-inline unpaid"
+        >
+          <div class="milestone-award-price" data-test="spot-price" v-text="spotPrice"></div>
         </span>
       </div>
 
@@ -93,9 +91,6 @@ export default defineComponent({
     },
     availableAwardSpots(): number[] {
       return AWARD_COSTS.slice(this.fundedAwards.length);
-    },
-    isLearnerModeOn(): boolean {
-      return this.preferences.learner_mode;
     },
   },
 });

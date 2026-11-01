@@ -58,13 +58,34 @@ export const PaymentWidgetMixin = defineComponent({
 
       const available = this.getAvailableUnits();
       for (const unit of order) {
+        const rate = this.getResourceRate(unit);
         ledger[unit] = {
           available: available[unit],
-          rate: this.getResourceRate(unit),
+          rate: rate,
           reserved: isStandardResource(unit) ? reserveUnits[unit] > 0 : false,
+          nonGreedy: !this.isGreedy(unit, rate),
         };
       }
       return ledger;
+    },
+
+    isGreedy(unit: SpendableResource, rate: number): boolean {
+      if (unit === 'heat') {
+        return false;
+      }
+
+      if (unit === 'titanium') {
+        // Luna Trade Federation titanium has a reduced rate that makes it
+        // a worse deal than M€, so only use it when M€ can't cover the cost.
+        if (this.playerinput.paymentOptions?.lunaTradeFederationTitanium !== true) {
+          return true;
+        }
+        if (rate < this.playerView.thisPlayer.titaniumValue) {
+          return false;
+        }
+      }
+
+      return true;
     },
 
     getResourceRate(unit: SpendableResource): number {
@@ -126,14 +147,14 @@ export const PaymentWidgetMixin = defineComponent({
       // That the card being paid for by the client shows that there's already a spare microbe around, and
       // that the server has decided there's enough money to play it.
       //
-      // The only microbes that can be used for payment are those on Psychopriles.
-      // If you don't have Psychopriles but are still paying for Soil Enrichment,
+      // The only microbes that can be used for payment are those on Psychrophiles.
+      // If you don't have Psychrophiles but are still paying for Soil Enrichment,
       // then amount, below would be -1, so the Math.max makes sure it's zero.
 
       // BTW, this could be managed by some derivative of reserveUnits that took extended resources into account.
       if (this.card?.name === CardName.SOIL_ENRICHMENT) {
-        // Find a card other than Psychopriles with microbes.
-        // If there is none, then Psychopriles can't use every one.
+        // Find a card other than Psychrophiles with microbes.
+        // If there is none, then Psychrophiles can't use every one.
         if (!thisPlayer.tableau.some((card) => {
           return card.name !== CardName.PSYCHROPHILES && getCard(card.name)?.resourceType === CardResource.MICROBE && (card.resources ?? 0) > 0;
         })) {

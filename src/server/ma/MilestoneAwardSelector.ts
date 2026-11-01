@@ -10,6 +10,7 @@ import {AwardName, awardNames} from '../../common/ma/AwardName';
 import {synergies} from './MilestoneAwardSynergies';
 import {isCompatible, MAManifest} from './MAManifest';
 import {intersection} from '../../common/utils/utils';
+import {validateCustomMA} from '../../common/ma/CustomMA';
 
 type DrawnMilestonesAndAwards = {
   milestones: Array<MilestoneName>,
@@ -79,6 +80,7 @@ export function chooseMilestonesAndAwards(gameOptions: GameOptions): DrawnMilest
     case BoardName.TERRA_CIMMERIA_NOVA:
     case BoardName.VASTITAS_BOREALIS:
     case BoardName.VASTITAS_BOREALIS_NOVA:
+    case BoardName.AMAZONIS_PLANITIA:
       push(milestoneManifest.boards[boardName], awardManifest.boards[gameOptions.boardName]);
       break;
     default:
@@ -106,12 +108,29 @@ export function chooseMilestonesAndAwards(gameOptions: GameOptions): DrawnMilest
   case RandomMAOptionType.UNLIMITED:
     drawnMilestonesAndAwards = getRandomMilestonesAndAwards(gameOptions, requiredQty, UNLIMITED_SYNERGY);
     break;
+  case RandomMAOptionType.MANUAL:
+    if (gameOptions.customMA === undefined) {
+      throw new Error('Manual milestones and awards require customMA');
+    }
+    validateCustomMA(gameOptions.customMA, gameOptions.randomMA, gameOptions.venusNextExtension);
+    drawnMilestonesAndAwards = {
+      milestones: [...gameOptions.customMA.milestones],
+      awards: [...gameOptions.customMA.awards],
+    };
+    break;
   default:
     throw new Error('Unknown milestone/award type: ' + gameOptions.randomMA);
   }
 
   return drawnMilestonesAndAwards;
 }
+
+/** Boards with no volcanic spaces. Exported for tests. */
+export const BOARDS_WITHOUT_VOLCANIC_SPACES: ReadonlyArray<BoardName> = [
+  BoardName.HELLAS,
+  BoardName.UTOPIA_PLANITIA,
+  BoardName.HOLLANDIA,
+];
 
 /**
  * Return the list of possible milestones and awards for a given game. Only meant to work with random selection.
@@ -133,7 +152,9 @@ export function getCandidates(gameOptions: GameOptions): [Array<MilestoneName>, 
       if (random === undefined) {
         return false;
       }
-      // TODO(kberg): Exclude Geologist if the board has no volcanic spaces
+      if (name === 'Geologist' && BOARDS_WITHOUT_VOLCANIC_SPACES.includes(gameOptions.boardName)) {
+        return false;
+      }
     } else {
       // The game boards this MA appears in, if any.
       const boards = Object.values(BoardName).filter((boardName) => manifest.boards[boardName].includes(name));

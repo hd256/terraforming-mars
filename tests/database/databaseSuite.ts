@@ -426,7 +426,6 @@ export function describeDatabaseSuite<T extends ITestDatabase>(dtor: DatabaseTes
       });
 
       it('deleteSession', async () => {
-        // TODO(kberg): Make databases rely on Clock. /shrug
         const expirationTimeMillis = Date.now() + 100000;
         await db.createSession({id: '123', expirationTimeMillis, data: {discordUser}});
         let sessions = await db.getSessions();
@@ -441,6 +440,19 @@ export function describeDatabaseSuite<T extends ITestDatabase>(dtor: DatabaseTes
         await db.createSession({id: '123', expirationTimeMillis, data: {discordUser}});
         const sessions = await db.getSessions();
         expect(sessions).to.be.empty;
+      });
+
+      it('deleteExpiredSessions', async () => {
+        const live = Date.now() + 100000;
+        await db.createSession({id: 'live', expirationTimeMillis: live, data: {discordUser}});
+        await db.createSession({id: 'expired', expirationTimeMillis: Date.now() - 1, data: {discordUser}});
+
+        expect(await db.deleteExpiredSessions()).eq(1);
+        expect(await db.getSessions()).deep.eq([{id: 'live', expirationTimeMillis: live, data: {discordUser}}]);
+
+        // The live session survives a second pass, which has nothing left to remove.
+        expect(await db.deleteExpiredSessions()).eq(0);
+        expect(await db.getSessions()).has.length(1);
       });
     }
 

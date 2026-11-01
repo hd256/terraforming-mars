@@ -17,7 +17,8 @@ import {DeltaProjectPlayerModel} from './DeltaProjectPlayerModel';
 export interface ViewModel {
   game: GameModel;
   players: Array<PublicPlayerModel>;
-  id?: ParticipantId;
+  id: ParticipantId;
+  color: Color;
   thisPlayer: PublicPlayerModel | undefined;
   runId: string;
 }
@@ -97,6 +98,8 @@ export interface PlayerViewModel extends ViewModel {
   ceoCardsInHand: ReadonlyArray<CardModel>;
   pickedCorporationCard: ReadonlyArray<CardModel>; // Why Array?
   preludeCardsInHand: ReadonlyArray<CardModel>;
+  /** The id of `waitingFor`, sent back with the response to it. */
+  requestId: string | undefined;
   thisPlayer: PublicPlayerModel;
   waitingFor: PlayerInputModel | undefined;
 }

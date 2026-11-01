@@ -27,8 +27,8 @@ describe('ApiGame', () => {
     scaffolding.ctx.gameLoader.add(Game.newInstance('game-valid-id', [player], player, 'spectatorid'));
     scaffolding.url = '/api/game?id=invalidId';
     await scaffolding.get(ApiGame.INSTANCE, res);
-    expect(res.statusCode).eq(statusCode.notFound);
-    expect(res.content).eq('Not found: game not found');
+    expect(res.statusCode).eq(statusCode.badRequest);
+    expect(res.content).eq('Bad request: invalid game id');
   });
 
   it('valid id', async () => {
@@ -99,6 +99,18 @@ describe('ApiGame', () => {
           'soloTR': false,
           'twoCorpsVariant': false,
           'undoOption': false,
+
+          'aresHazards': true,
+          'customCeos': [],
+          'customColoniesList': [],
+          'customCorporationsList': [],
+          'customPreludes': [],
+          'modularMA': false,
+          'moonStandardProjectVariant': false,
+          'moonStandardProjectVariant1': false,
+          'startingCeos': 3,
+          'startingCorporations': 2,
+          'startingPreludes': 4,
         },
       },
     );

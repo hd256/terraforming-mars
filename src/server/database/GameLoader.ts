@@ -1,4 +1,4 @@
-import prometheus from 'prom-client';
+import prometheus from '@prometheus-io/client';
 import {Database} from './Database';
 import {Game} from '../Game';
 import {IGame} from '../IGame';
@@ -49,6 +49,11 @@ const metrics = {
     name: 'game_purged',
     help: 'Number of games deleted because they are too old',
     labelNames: ['players'] as const,
+    registers: [prometheus.register],
+  }),
+  expiredSessionsDeleted: new prometheus.Counter({
+    name: 'expired_sessions_deleted',
+    help: 'Number of expired sessions deleted from storage',
     registers: [prometheus.register],
   }),
   gamesInMemory: new prometheus.Gauge({
@@ -278,6 +283,8 @@ export class GameLoader implements IGameLoader {
     this.purgedGames.push(...purgedGames);
     metrics.gamesPurged.inc(purgedGames.length);
     await database.compressCompletedGames();
+    const prunedSessions = await database.deleteExpiredSessions();
+    metrics.expiredSessionsDeleted.inc(prunedSessions);
   }
 }
 

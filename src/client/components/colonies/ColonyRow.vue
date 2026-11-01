@@ -1,11 +1,12 @@
 <template>
-   <div class="colony-grid-container">
+  <div class="colony-grid-container">
     <ColonySpace v-for="idx in [0, 1, 2, 3, 4, 5, 6]"
       :key="idx"
       :idx="idx"
       :metadata="metadata"
       :player="colony.colonies[idx]"
-      :marker="colony.isActive && colony.trackPosition === idx"/>
+      :marker="colony.isActive && colony.trackPosition === idx"
+      :fadeMarker="fadeMarker" />
   </div>
 </template>
 <script lang="ts">
@@ -29,6 +30,9 @@ export default defineComponent({
     colony: {
       type: Object as () => ColonyModel,
       required: true,
+    },
+    fadeMarker: {
+      type: Boolean,
     },
   },
 });

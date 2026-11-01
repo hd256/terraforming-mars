@@ -40,6 +40,15 @@ describe('Timer', () => {
     expect(Timer.toString(timer.serialize(), clock)).eq('00:01');
   });
 
+  it('does not count the first action, also while it runs', () => {
+    // Another game's timer stopped a day ago.
+    (Timer as any).lastStoppedAt = clock.millis - 24 * 3_600_000;
+    timer.start();
+    clock.millis += 1000;
+    expect(timer.getElapsed()).eq(0);
+    expect(Timer.toString(timer.serialize(), clock)).eq('00:00');
+  });
+
   it('shows 1:00:01 after 3601 sec', () => {
     timer.start(); // Skipping first action
     timer.stop();
@@ -49,6 +58,25 @@ describe('Timer', () => {
     expect(Timer.toString(timer.serialize(), clock)).eq('1:00:01');
     timer.stop();
     expect(Timer.toString(timer.serialize(), clock)).eq('1:00:01');
+  });
+
+  const toString = (sumElapsed: number) => Timer.toString({
+    sumElapsed,
+    startedAt: 0,
+    running: false,
+    afterFirstAction: true,
+    lastStoppedAt: 0,
+  });
+
+  it('shows 3-digit hours', () => {
+    expect(toString(((252 * 60 + 44) * 60 + 11) * 1000)).eq('252:44:11');
+  });
+
+  it('does not wrap hours after 31 days', () => {
+    expect(toString(743 * 3_600_000)).eq('743:00:00');
+    expect(toString(744 * 3_600_000)).eq('744:00:00');
+    expect(toString(745 * 3_600_000 + 1000)).eq('745:00:01');
+    expect(toString(1234 * 3_600_000)).eq('1234:00:00');
   });
 
   it('does not move the shared stop time backwards when loading another game', () => {

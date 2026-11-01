@@ -35,8 +35,7 @@ import {UNDERWORLD_CARD_MANIFEST} from './cards/underworld/UnderworldCardManifes
  * Therefore, this is only used when constructing a brand new instance.
  *
  * ... and one other place. When trying to determine the available standard
- * projects for a game. This is just done on the fly all the time, rather
- * that store them. (We should fix that.)
+ * projects for a game.
  */
 export class GameCards {
   private readonly gameOptions: GameOptions;
@@ -84,20 +83,21 @@ export class GameCards {
     return this.getCards<IStandardProjectCard>('standardProjects');
   }
   public getCorporationCards(): Array<ICorporationCard> {
-    const cards = this.getCards<ICorporationCard>('corporationCards')
-      .filter((card) => card.name !== CardName.BEGINNER_CORPORATION);
-    this.addCustomCards(cards, this.gameOptions.customCorporationsList);
-    return cards;
+    return this.getCustomCards<ICorporationCard>(this.gameOptions.customCorporationsList) ??
+      this.getCards<ICorporationCard>('corporationCards')
+        .filter((card) => card.name !== CardName.BEGINNER_CORPORATION);
   }
   public getPreludeCards() {
-    let preludes = this.getCards<IPreludeCard>('preludeCards');
-    // https://github.com/terraforming-mars/terraforming-mars/issues/2833
-    // Make Valley Trust playable even when Preludes is out of the game
-    // by preparing a deck of preludes.
-    if (preludes.length === 0) {
-      preludes = this.instantiate(PRELUDE_CARD_MANIFEST.preludeCards);
+    let preludes = this.getCustomCards<IPreludeCard>(this.gameOptions.customPreludes);
+    if (!preludes) {
+      preludes = this.getCards<IPreludeCard>('preludeCards');
+      // https://github.com/terraforming-mars/terraforming-mars/issues/2833
+      // Make Valley Trust playable even when Preludes is out of the game
+      // by preparing a deck of preludes.
+      if (preludes.length === 0) {
+        preludes = this.instantiate(PRELUDE_CARD_MANIFEST.preludeCards);
+      }
     }
-    this.addCustomCards(preludes, this.gameOptions.customPreludes);
 
     if (this.gameOptions.twoCorpsVariant) {
       // As each player who doesn't have Merger is dealt Merger in SelectInitialCards.ts,
@@ -108,16 +108,15 @@ export class GameCards {
   }
 
   public getCeoCards() {
-    const ceos = this.getCards<ICeoCard>('ceoCards');
-    this.addCustomCards(ceos, this.gameOptions.customCeos);
-    return ceos;
+    return this.getCustomCards<ICeoCard>(this.gameOptions.customCeos) ??
+      this.getCards<ICeoCard>('ceoCards');
   }
 
   /**
    * Instantiate every card in `customList` and add them to `cards` (except those that already exist in `cards`),
    */
-  private addCustomCards<T extends ICard>(cards: Array<T>, customList: ReadonlyArray<CardName> = []): void {
-    for (const cardName of customList) {
+  private addCustomCards<T extends ICard>(cards: Array<T>, customCards: ReadonlyArray<CardName> = []): void {
+    for (const cardName of customCards) {
       const canonicalName = resolveCardName(cardName);
       if (cards.findIndex((c) => c.name === canonicalName) > -1) {
         continue;
@@ -127,35 +126,45 @@ export class GameCards {
     }
   }
 
+  /*
+   * Instantiates the cards named in `customCards`, or `undefined` when `customCards` is empty.
+   */
+  private getCustomCards<T extends ICard>(customCards: ReadonlyArray<CardName>) {
+    if (customCards.length === 0) {
+      return undefined;
+    }
+    const names = new Set(customCards.map(resolveCardName));
+    return Array.from(names, (name) => <T> newCard(name));
+  }
+
+  /*
+   * Instantiates the `cardManifestName` cards from every module enabled in this game.
+   *
+   * Excludes cards that are incompatible with the game options, banned, or replaced by another module.
+   */
   private getCards<T extends ICard>(cardManifestName: keyof ModuleManifest) : Array<T> {
-    let cards: Array<T> = [];
+    const cards: Array<T> = [];
     for (const moduleManifest of this.moduleManifests) {
       // a bit of a hack, but since this is a private API, this is reasonable.
       const cardManifest: CardManifest<T> = moduleManifest[cardManifestName] as CardManifest<T>;
       cards.push(...this.instantiate(cardManifest));
     }
 
-    cards = this.filterBannedCards(cards);
-    cards = this.filterReplacedCards(cards);
-    return cards;
-  }
+    const filtered = cards.filter((card) => {
+      // Remove banned cards
+      if (this.gameOptions.bannedCards.includes(card.name)) {
+        return false;
+      }
 
-  /* Remove cards excluded by choice in game options */
-  private filterBannedCards<T extends ICard>(cards: Array<T>): Array<T> {
-    return cards.filter((card) => {
-      return this.gameOptions.bannedCards.includes(card.name) !== true;
-    });
-  }
-
-  /* Remove cards that are replaced by new versions in other manifests */
-  private filterReplacedCards<T extends ICard>(cards: Array<T>): Array<T> {
-    return cards.filter((card) => {
+      // Remove cards that are replaced by new versions in other manifests
       for (const manifest of this.moduleManifests) {
         if (manifest.cardsToRemove.has(card.name)) {
           return false;
         }
       }
+
       return true;
     });
+    return filtered;
   }
 }

@@ -1,4 +1,4 @@
-import prometheus from 'prom-client';
+import prometheus from '@prometheus-io/client';
 import {IDatabase, GameIdLedger} from './IDatabase';
 import {IGame, Score} from '../IGame';
 import {GameOptions} from '../game/GameOptions';
@@ -154,5 +154,9 @@ export class MetricsDelegate implements IDatabase {
 
   getSessions(): Promise<Array<Session>> {
     return withDatabaseMetrics('getSessions', () => this.delegate.getSessions());
+  }
+
+  deleteExpiredSessions(): Promise<number> {
+    return withDatabaseMetrics('deleteExpiredSessions', () => this.delegate.deleteExpiredSessions());
   }
 }

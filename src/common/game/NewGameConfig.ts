@@ -1,5 +1,4 @@
 import {BoardName} from '../boards/BoardName';
-import {RandomBoardOption} from '../boards/RandomBoardOption';
 import {CardName} from '../cards/CardName';
 import {ColonyName} from '../colonies/ColonyName';
 import {Color} from '../Color';
@@ -7,8 +6,7 @@ import {RandomMAOptionType} from '../ma/RandomMAOptionType';
 import {AgendaStyle} from '../turmoil/Types';
 import {GameId} from '../Types';
 import {Expansion} from '../cards/GameModule';
-
-export type BoardNameType = BoardName | RandomBoardOption;
+import {CustomMA} from '../ma/CustomMA';
 
 export interface NewPlayerModel {
   name: string;
@@ -32,10 +30,10 @@ export type EscapeVelocityOptions = {
 /**
  * Like GameOptions, but the data structure sent from the new game page.
  */
-export interface NewGameConfig {
+export type NewGameConfig = {
   players: Array<NewPlayerModel>;
   expansions: Record<Expansion, boolean>,
-  board: BoardNameType;
+  boards: Array<BoardName>;
   seed: number;
   randomFirstPlayer: boolean;
 
@@ -67,11 +65,11 @@ export interface NewGameConfig {
   randomMA: RandomMAOptionType;
   includeFanMA: boolean,
   soloTR: boolean; // Solo victory by getting TR 63 by game end
-  customCorporationsList: Array<CardName>;
-  bannedCards: Array<CardName>;
-  includedCards: Array<CardName>;
-  customColoniesList: Array<ColonyName>;
-  customPreludes: Array<CardName>;
+  customCorporationsList: ReadonlyArray<CardName>;
+  bannedCards: ReadonlyArray<CardName>;
+  includedCards: ReadonlyArray<CardName>;
+  customColoniesList: ReadonlyArray<ColonyName>;
+  customPreludes: ReadonlyArray<CardName>;
   requiresMoonTrackCompletion: boolean; // Moon must be completed to end the game
   requiresVenusTrackCompletion: boolean; // Venus must be completed to end the game
   moonStandardProjectVariant: boolean;
@@ -79,9 +77,10 @@ export interface NewGameConfig {
   altVenusBoard: boolean;
   escapeVelocity: EscapeVelocityOptions | undefined;
   twoCorpsVariant: boolean;
-  customCeos: Array<CardName>;
+  customCeos: ReadonlyArray<CardName>;
   startingCeos: number;
   startingPreludes: number;
   playablePreludes: number;
   extraCorporationsInPool: number;
+  customMA?: CustomMA;
 }

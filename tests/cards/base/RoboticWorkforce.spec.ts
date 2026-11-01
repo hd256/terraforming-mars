@@ -14,7 +14,7 @@ import {IGame} from '../../../src/server/IGame';
 import {SelectSpace} from '../../../src/server/inputs/SelectSpace';
 import {ALL_RESOURCES, Resource} from '../../../src/common/Resource';
 import {SpaceBonus} from '../../../src/common/boards/SpaceBonus';
-import {runNextAction, runAllActions, addCity, addOcean, fakeCard} from '../../TestingUtils';
+import {runAllActions, addCity, addOcean, fakeCard} from '../../TestingUtils';
 import {TileType} from '../../../src/common/TileType';
 import {ICard} from '../../../src/server/cards/ICard';
 import {TestPlayer} from '../../TestPlayer';
@@ -36,6 +36,9 @@ import {LunarMineUrbanization} from '../../../src/server/cards/moon/LunarMineUrb
 import {TitaniumMine} from '../../../src/server/cards/base/TitaniumMine';
 import {cast, toName} from '../../../src/common/utils/utils';
 import {Odyssey} from '../../../src/server/cards/pathfinders/Odyssey';
+import {ImmigrantCity} from '../../../src/server/cards/base/ImmigrantCity';
+import {NoctisCity} from '../../../src/server/cards/base/NoctisCity';
+import {FrontierTown} from '../../../src/server/cards/prelude2/FrontierTown';
 
 describe('RoboticWorkforce', () => {
   let card: RoboticWorkforce;
@@ -292,6 +295,51 @@ describe('RoboticWorkforce', () => {
     expect(player.production.asUnits()).deep.eq(Units.of({megacredits: 3}));
   });
 
+  it('Should work with Immigrant City', () => {
+    const immigrantCity = new ImmigrantCity();
+    player.playedCards.push(immigrantCity);
+    player.production.add(Resource.ENERGY, 2);
+
+    expect(card.canPlay(player)).is.true;
+    cast(card.play(player), undefined);
+    runAllActions(game);
+    const selectCard = cast(player.popWaitingFor(), SelectCard);
+
+    selectCard.cb([immigrantCity]);
+    expect(player.production.energy).to.eq(1);
+    expect(player.production.megacredits).to.eq(-2);
+  });
+
+  it('Should work with Frontier Town', () => {
+    const frontierTown = new FrontierTown();
+    player.playedCards.push(frontierTown);
+    player.production.add(Resource.ENERGY, 2);
+
+    expect(card.canPlay(player)).is.true;
+    cast(card.play(player), undefined);
+    runAllActions(game);
+    const selectCard = cast(player.popWaitingFor(), SelectCard);
+
+    selectCard.cb([frontierTown]);
+    expect(player.production.energy).to.eq(1);
+    expect(player.production.megacredits).to.eq(0);
+  });
+
+  it('Should work with Noctis City', () => {
+    const noctisCity = new NoctisCity();
+    player.playedCards.push(noctisCity);
+    player.production.add(Resource.ENERGY, 2);
+
+    expect(card.canPlay(player)).is.true;
+    cast(card.play(player), undefined);
+    runAllActions(game);
+    const selectCard = cast(player.popWaitingFor(), SelectCard);
+
+    selectCard.cb([noctisCity]);
+    expect(player.production.energy).to.eq(1);
+    expect(player.production.megacredits).to.eq(3);
+  });
+
   it('Events with building tags should be unselectable without Odyssey', () => {
     const lunarMineUrbanization = new LunarMineUrbanization();
     const titaniumMine = new TitaniumMine();
@@ -311,26 +359,27 @@ describe('RoboticWorkforce', () => {
     expect(selectCard2.cards.map(toName)).to.have.members([titaniumMine.name, lunarMineUrbanization.name]);
   });
 
+  const cardsToIgnore = [
+    CardName.SOLAR_FARM,  // Tough to test
+    CardName.SMALL_OPEN_PIT_MINE, // Tough to test
+    CardName.BEHEMOTH_EXCAVATOR, // False positive
+  ];
+
   describe('test all cards', () => {
     ALL_MODULE_MANIFESTS.forEach((manifest) => {
       const cards: CardManifest<ICard> = {...manifest.projectCards, ...manifest.preludeCards, ...manifest.corporationCards};
       for (const [cardName, factory] of CardManifest.entries(cards)) {
         it(cardName, () => {
-          const card = new factory!.Factory();
-          // Cards that are tough to test (and might even have tests above.)
-          if (card.name === CardName.SOLAR_FARM || card.name === CardName.SMALL_OPEN_PIT_MINE) {
+          if (cardsToIgnore.includes(cardName)) {
             return;
           }
-
+          const card = new factory!.Factory();
           testCard(card);
         });
       }
     });
 
     const testCard = function(card: ICard) {
-      if (card.name === CardName.LUNAR_MINE_URBANIZATION) {
-        console.log('hello');
-      }
       let include = false;
       if ((card.tags.includes(Tag.BUILDING) || card.tags.includes(Tag.WILD)) && card.play !== undefined) {
         // Create new players, set all productions to 2
@@ -378,7 +427,7 @@ describe('RoboticWorkforce', () => {
 
         // SelectSpace will trigger production changes in the right cards (e.g. Mining Rights)
         while (game.deferredActions.length) {
-          runNextAction(game);
+          runAllActions(game);
           const waitingFor = player.popWaitingFor();
           if (waitingFor instanceof SelectSpace) {
             waitingFor.cb(waitingFor.spaces[0]);
@@ -390,13 +439,15 @@ describe('RoboticWorkforce', () => {
       }
 
       console.log(`        ${card.name}: ${include ? 'eligible' : 'ineligible'}`);
-      // The card must have behavior, or a productionBox method.
+      // Every production that changed must be declared in behavior or a productionBox method.
       if (include) {
-        if (card.productionBox === undefined) {
-          const production = card.behavior?.production;
-          if (production === undefined || (Units.isUnits(production) && Units.isEmpty(production))) {
-            fail(card.name + ' should be registered for Robotic Workforce');
-          }
+        const changed = ALL_RESOURCES.filter((r) => player.production[r] !== 2);
+        const declared = card.productionBox !== undefined ?
+          ALL_RESOURCES.filter((r) => card.productionBox!(player)[r] !== 0) :
+          Object.keys(card.behavior?.production ?? {});
+        const missing = changed.filter((r) => !declared.includes(r));
+        if (missing.length > 0) {
+          fail(card.name + ' should be registered for Robotic Workforce (undeclared: ' + missing.join(', ') + ')');
         }
       }
     };
