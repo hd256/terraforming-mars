@@ -18,10 +18,10 @@
         <AppButton title="copy" size="tiny" @click="copyUrl(game.spectatorId)" />
       </li>
     </ul>
-        <div class="copy-all-container">
-          <AppButton title="Copy all" size="big" @click="copyAllUrls()"/>
-          <span v-if="isPlayerUrlCopied('all')" class="copied-notice"><span v-i18n>Copied!</span></span>
-        </div>
+    <div class="copy-all-container">
+      <AppButton title="Copy all" size="big" @click="copyAllUrls()" />
+      <span v-if="isPlayerUrlCopied('all')" class="copied-notice"><span v-i18n>Copied!</span></span>
+    </div>
     <div class="spacing-setup"></div>
 
     <PurgeWarning :expectedPurgeTimeMs="game.expectedPurgeTimeMs" />

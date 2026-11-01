@@ -76,6 +76,9 @@ function newGameConfig(overrides: Partial<NewGameConfig> = {}): NewGameConfig {
     customCeos: [],
     startingCeos: 3,
     startingPreludes: 4,
+    playablePreludes: 2,
+    corpPoolDraftVariant: false,
+    extraCorporationsInPool: 0,
     ...overrides,
   };
 }
