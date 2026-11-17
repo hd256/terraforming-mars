@@ -27,7 +27,7 @@ export class SpacePrivateers extends Card implements IProjectCard, IActionCard {
         cardNumber: 'U050',
         renderData: CardRenderer.builder((b) => {
           b.effect('Whenever you play a crime tag, including this, put 1 fighter on this card.', (ab) => {
-            ab.tag(Tag.CRIME).startAction.resource(CardResource.FIGHTER);
+            ab.tag(Tag.CRIME).startEffect.resource(CardResource.FIGHTER);
           }).br;
           b.action(
             'Steal up to 1 M€ per fighter here, from EACH OTHER player. ' +
